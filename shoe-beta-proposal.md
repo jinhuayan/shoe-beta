@@ -37,7 +37,7 @@ Price comparison is an extra feature we may add if a suitable data source is ava
 
 ### 2.2 Architecture and tools
 
-We plan to use the **Next.js full-stack approach** listed in the [project guidelines](https://www.eecg.utoronto.ca/~cying/courses/ece1724-web/project/handout/).
+We plan to use the **Next.js full-stack approach**.
 
 | Part | Planned tools |
 | --- | --- |
@@ -46,8 +46,6 @@ We plan to use the **Next.js full-stack approach** listed in the [project guidel
 | Database | PostgreSQL with Prisma ORM |
 | File storage | DigitalOcean Spaces |
 | Accounts and sessions | Better Auth |
-
-These choices follow the [course syllabus](https://www.eecg.utoronto.ca/~cying/courses/ece1724-web/syllabus/) and project guidelines. Prisma is covered in class; DigitalOcean Spaces and Better Auth are named in the project handout.
 
 Server Components will load shoe and account data. Client Components will handle the profile form, filters, and comparison selection. Server Actions will save profiles, fit records, and favourites. API Routes will handle recommendations and nearby-shop requests.
 
@@ -101,8 +99,6 @@ We will test rules with profiles that differ in width, heel volume, and comfort 
 ## 3. Project Plan and Team Responsibilities
 
 ### 3.1 Development plan
-
-The plan follows the [project overview](https://www.eecg.utoronto.ca/~cying/courses/ece1724-web/project/overview/). All dates are in 2026, with submission deadlines at 11:59 PM Toronto time.
 
 | Period | Main work |
 | --- | --- |
