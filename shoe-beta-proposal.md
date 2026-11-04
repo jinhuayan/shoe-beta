@@ -134,7 +134,7 @@ Jinhua's starting idea was a modern climbing shoe sizing and recommendation webs
 
 The first possible directions were comparing sizes between shoes and helping users choose both a model and a size. The stack, data model, and rules had not been selected. Unanswered questions included how to describe foot and shoe shapes, obtain reliable sizing information, and access prices or shop availability.
 
-This subsection records Jinhua's starting idea. Jenny and Ouyi should add their initial thinking and any actual team discussions before submission.
+Jenny’s first idea focused on how sizing would work. She thought each shoe could have one fixed rule, like “go half a size down from your street size,” and the site would apply it to the user’s street size. For choosing models, she suggested labelling both feet and shoes as narrow, medium, or wide and matching them. She was not sure if one rule per shoe would be enough, since the right size can also depend on foot shape and how tight the climber wants the shoe. She also did not know how to describe foot and shoe shapes in a way that users could fill in easily.
 
 ### 4.2 Exploration and Evaluation
 
