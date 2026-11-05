@@ -1,8 +1,7 @@
 # Project Proposal: Shoe Beta
 
 **Course:** ECE1724: Advanced Web Development, Fall 2026  
-**Repository:** [github.com/jinhuayan/shoe-beta](https://github.com/jinhuayan/shoe-beta)  
-**Status:** Working draft
+**Repository:** [github.com/jinhuayan/shoe-beta](https://github.com/jinhuayan/shoe-beta)
 
 | Team member | Student number | Email |
 | --- | --- | --- |
@@ -12,136 +11,112 @@
 
 ## 1. Motivation
 
-Climbing shoes can be hard to choose, especially when buying online. Two people may wear the same street shoe size but have different foot widths, toe shapes, and heels. Even within one brand, different models may fit differently. Choosing a smaller size does not necessarily fix a shoe that has the wrong shape.
+Climbing shoes are difficult to choose online. Street shoe size alone does not capture foot width, toe shape, heel volume, or differences between shoe models. Even within one brand, the same labelled size can feel different. Beginners often prioritize comfort, whereas experienced climbers may want greater precision for bouldering or technical routes. Product charts and scattered reviews rarely explain how these tradeoffs apply to a particular climber.
 
-The choice also depends on what the climber wants to do. A beginner looking for a comfortable indoor shoe may have different needs from someone looking for a shoe for harder bouldering. Size charts and reviews help, but it takes time to compare them and work out which advice applies to your own feet.
+**Shoe Beta** will help climbers narrow down both a suitable model and an **approximate size or size range**. Users provide foot measurements and climbing preferences, then receive explainable, rule-based recommendations. They can browse shoe details and find nearby outdoor or climbing stores to try shoes on. Size estimates are guidance, not guarantees; store results will not imply stock availability.
 
-Shoe Beta will help beginner to advanced climbers choose models and estimated sizes based on their feet, climbing preferences, and shoes they have worn before. Users will see why a shoe is suggested and find nearby shops where they could try it. The aim is to narrow down choices before buying, while making clear that an estimate cannot replace trying shoes on.
+Visitors can explore recommendations without signing in. Registration and login enable persistent profiles, fitting records, and photos. This keeps the first-use experience simple while supporting secure personal data.
 
 ## 2. Objectives, Architecture, and Key Features
 
-### 2.1 Main features
+### 2.1 Scope and features
 
-Users will be able to:
+**Core:**
 
-- Create an account and save their foot and climbing profiles.
-- Enter foot length, street size, width, toe shape, heel volume, experience, and comfort preference.
-- Add shoes they have worn and describe the fit, including tight areas or empty space.
-- Browse and filter a shoe catalogue.
-- Get recommendations with estimated size ranges and reasons.
-- Save favourites and compare up to three models.
-- Upload, view, and download optional photos attached to fit records.
-- Search for nearby climbing or outdoor shops.
+- **Authentication:** Register, log in, log out, and manage sessions; enforce access controls on private records.
+- **Foot/climbing questionnaire:** Foot length, street size, width, toe shape, heel volume, experience, discipline, and comfort preference. Users may select “unsure”; signed-in users can save profiles.
+- **Catalogue:** Browse/filter approximately **20–30 manually curated shoe models or variants** with documented characteristics and sizing notes.
+- **Recommendations:** Rank shoes using transparent rules; show reasons and possible fit mismatches.
+- **Size estimation:** Suggest a model-specific **reference EU size or range** based on measurements, street size, fitting preference, and available notes. Explicitly report insufficient information.
+- **Nearby shops:** Query an external Places API using a user-entered location; list relevant stores, addresses, and map links.
+- **Fit records and cloud photos:** Signed-in users can create, update, and delete records of shoes tried and attach at most one photo per record, with upload, view/download, and deletion.
 
-Price comparison is an extra feature we may add if a suitable data source is available.
+**Optional after core completion:** Saved favourites, comparison of up to three shoes, and inventory/price lookup if dependable APIs are available. Live inventory is **not** part of nearby-shop search. No machine-learning training, automatic foot measurement from photos, or guaranteed fit prediction is planned.
 
-### 2.2 Architecture and tools
+### 2.2 Architecture and integration
 
-We plan to use the **Next.js full-stack approach**.
+We choose **Next.js full-stack (App Router)** rather than separate React and Express applications to reduce cross-service integration work for three developers.
 
-| Part | Planned tools |
+| Layer | Technology and responsibility |
 | --- | --- |
-| Frontend and server code | TypeScript and Next.js with the App Router |
-| UI | React, Tailwind CSS, and shadcn/ui |
-| Database | PostgreSQL with Prisma ORM |
-| File storage | DigitalOcean Spaces |
-| Accounts and sessions | Better Auth |
+| UI | React/Next.js with TypeScript, Tailwind CSS, shadcn/ui, responsive layouts |
+| Server | TypeScript; Server Components for initial data, Client Components for interactive forms; Server Actions for mutations and Route Handlers/API routes for recommendation and shop requests |
+| Database | PostgreSQL with Prisma ORM for relational data |
+| Identity | Better Auth for accounts and sessions |
+| Files | DigitalOcean Spaces for uploaded photos |
+| External service | Places API selected after checking relevance, quotas, and cost |
 
-Server Components will load shoe and account data. Client Components will handle the profile form, filters, and comparison selection. Server Actions will save profiles, fit records, and favourites. API Routes will handle recommendations and nearby-shop requests.
+The questionnaire sends validated inputs to server-side recommendation modules, which read catalogue data through Prisma and return ranked models, size estimates, and explanations. Authenticated mutations save profiles and fitting records. API keys, storage credentials, and session secrets stay on the server. Using one Next.js project simplifies sharing types and coordinating UI and database changes, although integration testing remains necessary.
 
-Database queries and recommendation rules will stay in separate server modules. Keeping everything in one Next.js project should make integration easier for three people than maintaining separate applications. PostgreSQL will store the related user, shoe, and fit data, with Prisma used for the schema and queries. The server will validate form input before saving it.
+### 2.3 Data design and storage
 
-### 2.3 Database and application flow
-
-| Entity | Information stored |
+| Entity | Main purpose |
 | --- | --- |
-| User | Account information and links to the user's records. |
-| FootProfile | Measurements, street size, width, toe shape, and heel volume. |
-| ClimbingProfile | Experience, climbing styles, and comfort preference. |
-| Shoe | Brand, model, variant, sizes, stiffness, downturn, and intended uses. |
-| ShoeFitProfile | Width, heel and overall volume, sizing notes, and uncertain attributes. |
-| FitRecord | User, shoe, worn size, fit rating, tight or loose areas, and comments. |
-| Favourite | A user's saved shoe. |
-| Upload | Owner, fit record, storage key, file type, and size. |
+| `User` plus auth tables | Account identity, sessions, and ownership |
+| `FootProfile`, `ClimbingProfile` | One set of measurements and preferences per user |
+| `Shoe`, `ShoeFitProfile` | Shoe catalogue, model fit attributes, sizing notes, sources, confidence |
+| `FitRecord` | User, shoe, worn size, rating, tight/loose areas, notes |
+| `Upload` | Fit-record owner, storage key, content type, file size |
+| `Favourite` (optional) | Saved user–shoe relationship |
 
-Each user will have one foot profile and one climbing profile, and can have many fit records and favourites. A shoe can have records from different users. Variants with different fit characteristics will have separate entries. Images will belong to a user and a fit record. Foreign keys will maintain these relationships.
+A user can have multiple fit records; a shoe can appear in records from many users. Each fit record permits at most one photo initially. PostgreSQL stores relationships and file metadata; Spaces stores the actual file. Before upload/download/delete, the server validates the authenticated user's ownership and file constraints. Public catalogue/recommendation requests do not require an account; saving private data does.
 
-After the user saves a profile, the recommendation route will read their profile, shoe history, and shoe data. It will calculate the results and return models, size estimates, and reasons to the UI. Updating a profile and requesting recommendations again will use the new information.
+### 2.4 Recommendation and sizing rules
 
-### 2.4 Recommendation approach
+We will keep **model suitability** and **size estimation** separate. Suitability rules compare foot shape and climbing preferences with shoe width, heel volume, stiffness, downturn, and intended use. For example, a narrow-forefoot model will rank lower for a wide-footed user, with a corresponding explanation. Scores indicate relative ranking, **not fit probabilities**.
 
-We plan to start with a rule-based system. It will compare foot characteristics and climbing preferences with the shoe data. For example, a narrow shoe would receive a lower score for a wide forefoot. Heel volume, toe shape, stiffness, climbing style, and comfort preference will also affect ranking.
+Sizing starts from foot length and street size, then applies **model-specific notes** and the user's comfort/performance preference. We will avoid a universal downsizing formula. Where supported, results show an approximate labelled EU size or range; otherwise they show “estimate unavailable.” We will document data sources and mark uncertain attributes rather than inventing precision.
 
-The app will explain each result, including possible fit concerns. We will define the rules and their relative importance, then check them using different sample profiles. Unknown attributes will be labelled rather than treated as confirmed matches. Scores will rank shoes, rather than represent a percentage chance of correct fit.
+The initial catalogue will be small enough to check manually. Tests will compare contrasting sample profiles, incomplete fields, boundary values, and contradictory sizing notes. These tests demonstrate consistency, not universal real-world fit accuracy.
 
-Size estimation will be separate. It will consider foot length, street size, model-specific sizing notes, preferred fit, and previous shoes where useful comparisons are available. We will not apply one downsizing rule to every model. Results may give a range, such as EU 35.5 to 36, and explain the intended fit. If information is insufficient, an estimate will be unavailable.
+### 2.5 Mandatory file handling and advanced features
 
-We will prepare a small dataset and record the basis for its fit and sizing notes. Rules are practical for our timeline because we can inspect and test the calculations without a large training dataset. Collecting reliable shoe information will be an early task.
+**Cloud storage (core requirement):** Upload, retrieve/download, and delete a photo linked to a fit record through DigitalOcean Spaces, with size/type validation and database metadata. Basic upload/download is **not** counted as an advanced feature.
 
-### 2.5 Cloud storage and advanced features
+**Advanced feature 1 — Authentication and authorization:** Better Auth registration/login/logout, session management, protected server operations, and ownership checks for profiles, fit records, and files. Tests will reject unauthenticated and cross-account access.
 
-**Cloud file storage:** Users can attach photos to fit records. DigitalOcean Spaces will store the files; PostgreSQL will store their keys and record links. The server will check ownership, file type, and size. Users can retrieve and download their images, and attachment deletion will remove the stored file. This is a core requirement, not one of our advanced features.
+**Advanced feature 2 — External API integration:** A server-side Places API request returning nearby shops and map links. We will test empty responses, API failure, and usage limits; failures will not block recommendations. Real-time inventory or price search is optional.
 
-Our two planned advanced features are:
-
-**Authentication and authorization:** Better Auth will support registration, login, and sessions. Users can only change their own profiles, fit records, favourites, and uploads. The server will check sessions and record ownership for protected operations.
-
-**External API integration:** The server will call a places service to search near a user-selected location. Results will show store names, addresses, distance estimates, and map links. We will choose the provider after a small prototype checks relevance and cost. The course allows external API integration without requiring a particular provider. Empty results and service errors will not block recommendations. A nearby-shop result will not confirm that a shoe or size is in stock.
-
-### 2.6 UI, scope, and verification
-
-The form will use short steps and explain terms such as heel volume. Users can select "unsure" and change earlier answers. Results will show models, size estimates, reasons, and concerns. Comparisons will use consistent attributes. Pages will work on desktop and mobile, with clear loading and error messages.
-
-We will aim for about 30 shoe variants. Exact inventory, price alerts, automatic learning, and measuring feet from photos are outside the core scope. This leaves time to complete the full user flow.
-
-We will test rules with profiles that differ in width, heel volume, and comfort preference, including missing information. We will check valid size ranges and whether explanations agree with calculations. API tests will cover profile saving, ownership, and file retrieval. We will also test the full login-to-recommendation flow and shop-service failures. Known fit examples will help review usefulness, although they will not prove sizing accuracy for everyone.
+The UI will explain foot-shape terms and offer accessible form labels, responsive pages, and loading/error/empty states. End-to-end tests will cover visitor recommendations, authenticated saving, photos, and shop search.
 
 ## 3. Project Plan and Team Responsibilities
 
-### 3.1 Development plan
+### 3.1 Milestones and dependencies
 
-| Period | Main work |
+The schedule prioritizes one **working vertical slice** before adding supporting features. Dates below are targets, not claims that work has already been completed.
+
+| Period | Deliverable / checkpoint |
 | --- | --- |
-| Oct 12 to 25 | Agree on scope, sketch the UI, define the schema, and collect initial shoe data. Start React components and database queries. Submit team formation by Oct 25. |
-| Oct 26 to Nov 8 | Build the Next.js structure, accounts, profiles, and first recommendation flow. Test the shop API choice. Each member submits the same proposal by Nov 8. |
-| Nov 9 to 18 | Add uploads, fit records, favourites, comparison, and shop search. Expand the dataset. Complete the individual health check by Nov 18. |
-| Nov 19 to 26 | Test the integrated application and prepare the demo. Submit the introduction by Nov 25 and slides by Nov 26. |
-| Nov 27 to Dec 6 | Fix issues and finish the README, AI record, and 2 to 5 minute video. Submit the final repository by Dec 6. |
+| **By Nov 8** | Finalize proposal, schema and API contracts; scaffold Next.js; seed 8–10 shoes; demonstrate a basic questionnaire → recommendation → approximate-size path locally. Validate Better Auth and the Places provider in small prototypes. **Proposal due Nov 8.** |
+| **Nov 9–15** | Complete catalogue and main responsive results UI; expand vetted shoe data toward 20–30 models. Implement registration/login and profile persistence; test recommendation rules and missing-data behavior. |
+| **Nov 16–20** | Integrate fit-record CRUD and one-photo Spaces upload/download/delete. Add Places-based shop listings; test ownership, error responses, and full user journeys. **Individual health check due Nov 18.** |
+| **Nov 21–26** | Freeze optional features; fix integration issues and complete all **mandatory core technologies**. Prepare a reliable local live demo and explain both advanced features (implemented or with concrete completion evidence/plan). **Introduction due Nov 25; slides due Nov 26. Only work completed by Nov 26 may be presented**, even on Dec 4. |
+| **Nov 27–Dec 6** | Finish remaining advanced-feature work and regression/security checks; finalize README, setup instructions, `ai-session.md`, and 2–5-minute video. Deploy if feasible (deployment is optional). **Final GitHub repository due Dec 6.** |
 
-The presentation will show work completed by November 26, whichever presentation date we are assigned.
+If shoe data collection, authentication, or an external service stalls, we will reduce catalogue breadth and omit optional comparison/inventory rather than sacrifice the core flow. We will integrate weekly through small pull requests and test deployment-independent local operation before presentation.
 
-### 3.2 Initial responsibilities
+### 3.2 Ownership and coordination
 
-This is a proposed task split for the team to confirm.
-
-| Member | Main responsibilities |
+| Member | Initial responsibilities |
 | --- | --- |
-| Jenny Qin | Profile form, catalogue and results pages, comparison UI, responsive styling, and frontend checks. |
-| Jinhua Yan | Shoe data, database schema, recommendation and sizing logic, explanations, and recommendation tests. |
-| Ouyi Yang | Authentication, permissions, fit-record and upload handling, shop API integration, and deployment setup. |
+| **Jenny Qin** | Questionnaire, catalogue/results UI, login screens, responsive styling, frontend integration and tests |
+| **Jinhua Yan** | Shoe dataset and source tracking, Prisma schema, recommendation/size rules, explanations, FitRecord data model, algorithm tests |
+| **Ouyi Yang** | Better Auth server integration and ownership checks, FitRecord API with Jinhua, Spaces storage, Places API, deployment configuration |
 
-We will share code reviews, integration testing, documentation, and presentation preparation. GitHub issues will track tasks, with changes made through feature branches and pull requests.
-
-Profile and shoe fields need to be agreed early because the UI and recommendation logic depend on them. We will connect the main flow using a small dataset first, then add shoes and supporting features. Weekly integration checks will help us find problems before the final stage.
-
-Incomplete shoe data and unreliable external results are the main risks. We will investigate them early, reduce the catalogue if needed, and leave price comparison until core features work. The README will include setup steps, environment variables, migrations, seed data, and the demo link.
+Jinhua and Ouyi will agree early on user–fit-record–upload relationships and typed interfaces; Jenny will connect those interfaces to forms and authenticated views. All members share code review, integration tests, documentation, presentation, and demo checks. GitHub issues, branches, pull requests, and meaningful commits will track ownership and progress. Major risks are unreliable sizing notes, authentication integration, file access control, and Places API limitations; each has an early prototype or test checkpoint.
 
 ## 4. Initial Team Reasoning and AI-Assisted Exploration
 
 ### 4.1 Initial Team Reasoning
 
-Jinhua's starting idea was a modern climbing shoe sizing and recommendation website. The main observation was that everyone has a different foot shape, so street size alone may not be enough. The original idea included beginner to advanced recommendations, nearby shops, and price comparison, with more features added later.
+**Jinhua:** The original idea was a climbing shoe sizing and recommendation site because foot shape makes street size insufficient. Initial possibilities included matching shoe models, comparing sizes, and finding nearby stores or prices. Open questions concerned the shoe data, shape descriptions, and technical architecture.
 
-The first possible directions were comparing sizes between shoes and helping users choose both a model and a size. The stack, data model, and rules had not been selected. Unanswered questions included how to describe foot and shoe shapes, obtain reliable sizing information, and access prices or shop availability.
+**Jenny:** Initially suggested one fixed size adjustment for each model (for example, half a size smaller than street size) and matching feet and shoes labelled narrow, medium, or wide. She questioned whether one adjustment could account for foot shape and preferred tightness, and how users could easily describe their feet.
 
-Jenny’s first idea focused on how sizing would work. She thought each shoe could have one fixed rule, like “go half a size down from your street size,” and the site would apply it to the user’s street size. For choosing models, she suggested labelling both feet and shoes as narrow, medium, or wide and matching them. She was not sure if one rule per shoe would be enough, since the right size can also depend on foot shape and how tight the climber wants the shoe. She also did not know how to describe foot and shoe shapes in a way that users could fill in easily.
+**Ouyi:** During subsequent scope discussions, emphasized approximate size recommendations and basic nearby-shop listings instead of inventory search. Ouyi raised concern about the time required for authentication. These were **later scope considerations**, not claims about the team's pre-AI initial discussion; their resolution is described below.
 
 ### 4.2 Exploration and Evaluation
 
-AI helped expand the idea into profiles, shoe history, recommendations, and a development plan. It suggested rules instead of machine learning and making live prices optional. These remain proposed choices for the team to review.
+AI-assisted exploration suggested user profiles, a curated catalogue, rule-based rankings, size estimates, fit records, photos, and optional commercial features. We narrowed the proposal after considering three-person capacity and the course requirements. Instead of adopting a universal shoe-size adjustment or claiming match probabilities, we chose model-specific sizing notes, visible uncertainty, and test profiles. We will check actual shoe information before accepting generated recommendations.
 
-One change after reviewing the AI draft was to use the course website as the technical reference instead of outside websites. We checked the tools against the syllabus and project guidelines and added Prisma to the plan. This connects the design to what is taught or documented for the project.
-
-We also kept size estimates and reasons instead of precise fit predictions. The earlier AI suggestion included match percentages, but we lack evidence to treat them as accurate probabilities. We plan to check the rules with sample profiles and known fit examples.
-
-We will record representative AI interactions, what we changed or accepted, and how we verified results in `ai-session.md`.
+An intermediate draft made login optional to reduce workload. After reviewing the requirement for **at least two advanced features**, we restored authentication/authorization alongside the Places API integration. We also separated mandatory cloud upload/download from advanced features and excluded live inventory from core scope. These decisions reflect deliberate evaluation of feasibility rather than accepting every AI-suggested feature. Representative AI interactions and verification will be recorded in `ai-session.md`.
