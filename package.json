@@ -7,12 +7,23 @@
     "build": "next build --webpack",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint . --max-warnings=0"
+    "lint": "eslint . --max-warnings=0",
+    "postinstall": "prisma generate",
+    "prebuild": "prisma generate",
+    "db:generate": "prisma generate",
+    "db:validate": "prisma validate",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
     "next": "16.4.5",
     "react": "19.3.1",
-    "react-dom": "19.3.1"
+    "react-dom": "19.3.1",
+    "@prisma/client": "7.10.1",
+    "@prisma/adapter-pg": "7.10.1",
+    "pg": "^8.16.0",
+    "dotenv": "^17.0.0",
+    "server-only": "0.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.5",
@@ -23,6 +34,9 @@
     "eslint-config-next": "16.4.5",
     "postcss": "^8.5.0",
     "tailwindcss": "^4.3.5",
-    "typescript": "^5.9.0"
-  }
+    "typescript": "^5.9.0",
+    "prisma": "7.10.1",
+    "@types/pg": "^8.15.0"
+  },
+  "type": "module"
 }
