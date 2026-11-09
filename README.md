@@ -4,6 +4,8 @@ Initial Next.js setup with TypeScript and Tailwind CSS.
 
 ## Run
 
+Use Node.js 24. With nvm, run `nvm install` followed by `nvm use`.
+
 ```bash
 npm ci
 npm run dev
