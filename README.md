@@ -14,6 +14,7 @@ Open the Local URL printed in the terminal, normally http://localhost:3000.
 ## Check
 
 ```bash
+npm run lint
 npm run build
 ```
 
