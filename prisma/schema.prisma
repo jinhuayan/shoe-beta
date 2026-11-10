@@ -42,6 +42,35 @@ enum HeelVolume {
   UNKNOWN
 }
 
+enum ToeShape {
+  BIG_TOE
+  SECOND_TOE
+  SQUARE
+  UNKNOWN
+}
+
+enum ClimbingExperience {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  UNKNOWN
+}
+
+enum ClimbingDiscipline {
+  BOULDERING
+  SPORT
+  TRAD
+  MIXED
+  UNKNOWN
+}
+
+enum FitPreference {
+  COMFORT
+  BALANCED
+  PERFORMANCE
+  UNKNOWN
+}
+
 model Shoe {
   id          String     @id @default(cuid())
   slug        String     @unique
@@ -57,17 +86,32 @@ model Shoe {
 }
 
 model User {
-  id            String    @id
-  name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
+  id              String           @id
+  name            String
+  email           String           @unique
+  emailVerified   Boolean          @default(false)
+  image           String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  sessions        Session[]
+  accounts        Account[]
+  climbingProfile ClimbingProfile?
 
   @@map("user")
+}
+
+model ClimbingProfile {
+  userId        String             @id
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  footLengthMm  Float?
+  streetSizeEu  Float?
+  width         FootWidth          @default(UNKNOWN)
+  toeShape      ToeShape           @default(UNKNOWN)
+  heelVolume    HeelVolume         @default(UNKNOWN)
+  experience    ClimbingExperience @default(UNKNOWN)
+  discipline    ClimbingDiscipline @default(UNKNOWN)
+  fitPreference FitPreference      @default(UNKNOWN)
+  updatedAt     DateTime           @updatedAt
 }
 
 model Session {

@@ -72,12 +72,13 @@ async function start(configured = true, https = false) {
   throw new Error("Test server did not become ready.");
 }
 
-async function request(path, { method = "GET", body, cookies = new Map(), origin = baseURL } = {}) {
-  const headers = { Origin: origin };
-  if (body) headers["Content-Type"] = "application/json";
+async function request(path, { method = "GET", body, cookies = new Map(), origin = baseURL, api = "/api/auth" } = {}) {
+  const headers = origin ? { Origin: origin } : {};
+  const form = body instanceof FormData;
+  if (body && !form) headers["Content-Type"] = "application/json";
   if (cookies.size) headers.Cookie = [...cookies.values()].join("; ");
-  const response = await fetch(`${baseURL}/api/auth${path}`, {
-    method, headers, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(15000),
+  const response = await fetch(`${baseURL}${api}${path}`, {
+    method, headers, body: form ? body : body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(15000),
   });
   const setCookies = response.headers.getSetCookie();
   for (const cookie of setCookies) {
@@ -86,7 +87,17 @@ async function request(path, { method = "GET", body, cookies = new Map(), origin
     if (/max-age=0/i.test(cookie) || pair.endsWith("=")) cookies.delete(name);
     else cookies.set(name, pair);
   }
-  return { status: response.status, body: await response.json(), setCookies };
+  return { status: response.status, body: await response.json(), setCookies, cacheControl: response.headers.get("cache-control") };
+}
+
+const profileRequest = (options = {}) => request("", { ...options, api: "/api/profile" });
+function answers(overrides = {}) {
+  const data = new FormData();
+  for (const [name, value] of Object.entries({
+    footLengthMm: "245.1", streetSizeEu: "39.5", width: "NARROW", toeShape: "SECOND_TOE",
+    heelVolume: "LOW", experience: "BEGINNER", discipline: "BOULDERING", fitPreference: "COMFORT", ...overrides,
+  })) data.set(name, value);
+  return data;
 }
 
 try {
@@ -131,9 +142,52 @@ try {
   assert.equal((await request("/get-session", { cookies: aliceCookies })).body.user.id, alice.body.user.id);
   console.log("Passed session ownership and origin checks.");
 
+  assert.equal((await profileRequest()).status, 401);
+  assert.equal((await profileRequest({ method: "PUT", body: answers() })).status, 401);
+  assert.deepEqual((await profileRequest({ cookies: aliceCookies })).body, null);
+  const saved = await profileRequest({ method: "PUT", cookies: aliceCookies, body: answers() });
+  assert.equal(saved.status, 200);
+  assert.equal(saved.body.profile.footLengthMm, 245.1);
+  assert.equal(saved.body.profile.streetSizeEu, 39.5);
+  const updated = await profileRequest({ method: "PUT", cookies: aliceCookies, body: answers({ width: "WIDE" }) });
+  assert.equal(updated.status, 200);
+  const loaded = await profileRequest({ cookies: aliceCookies });
+  assert.equal(loaded.body.profile.width, "WIDE");
+  assert.match(loaded.cacheControl, /private/);
+  assert.match(loaded.cacheControl, /no-store/);
+  const count = await pool.query('SELECT count(*)::int AS count FROM "ClimbingProfile" WHERE "userId" = $1', [alice.body.user.id]);
+  assert.equal(count.rows[0].count, 1);
+
+  const other = await request(`?userId=${alice.body.user.id}`, { api: "/api/profile", cookies: bobCookies });
+  assert.deepEqual(other.body, null);
+  const bobProfile = await profileRequest({ method: "PUT", cookies: bobCookies, body: answers({
+    userId: alice.body.user.id, width: "REGULAR", footLengthMm: "", streetSizeEu: "",
+    toeShape: "UNKNOWN", heelVolume: "UNKNOWN", experience: "UNKNOWN", discipline: "UNKNOWN", fitPreference: "UNKNOWN",
+  }) });
+  assert.equal(bobProfile.status, 200);
+  assert.equal(bobProfile.body.profile.footLengthMm, null);
+  assert.equal(bobProfile.body.profile.streetSizeEu, null);
+  assert.equal(bobProfile.body.profile.toeShape, "UNKNOWN");
+  assert.equal((await profileRequest({ cookies: bobCookies })).body.profile.width, "REGULAR");
+  assert.equal((await profileRequest({ cookies: aliceCookies })).body.profile.width, "WIDE");
+
+  const invalidProfile = await profileRequest({ method: "PUT", cookies: aliceCookies, body: answers({ footLengthMm: "99", width: "BROAD" }) });
+  assert.equal(invalidProfile.status, 400);
+  assert.ok(invalidProfile.body.errors.footLengthMm && invalidProfile.body.errors.width);
+  const duplicate = answers();
+  duplicate.append("discipline", "SPORT");
+  assert.equal((await profileRequest({ method: "PUT", cookies: aliceCookies, body: duplicate })).status, 400);
+  assert.equal((await profileRequest({ method: "PUT", cookies: aliceCookies, body: {} })).status, 400);
+  assert.equal((await profileRequest({ method: "PUT", cookies: aliceCookies, body: answers(), origin: "https://example.invalid" })).status, 403);
+  assert.equal((await profileRequest({ method: "PUT", cookies: aliceCookies, body: answers(), origin: null })).status, 403);
+  assert.equal((await profileRequest({ cookies: aliceCookies })).body.profile.width, "WIDE");
+  console.log("Passed profile creation, updates, validation, cache headers, origin checks, and account isolation.");
+
   const oldAliceCookies = new Map(aliceCookies);
   assert.equal((await request("/sign-out", { method: "POST", cookies: aliceCookies, body: {} })).status, 200);
   assert.deepEqual((await request("/get-session", { cookies: oldAliceCookies })).body, null);
+  assert.equal((await profileRequest({ cookies: oldAliceCookies })).status, 401);
+  assert.equal((await profileRequest({ method: "PUT", cookies: oldAliceCookies, body: answers() })).status, 401);
   const wrong = await request("/sign-in/email", { method: "POST", body: { email: emails[0], password: "Wrong-password-123!" } });
   assert.equal(wrong.status, 401);
   const signedIn = await request("/sign-in/email", { method: "POST", cookies: aliceCookies, body: { email: emails[0], password } });
@@ -141,8 +195,11 @@ try {
   await stop();
   await start();
   assert.equal((await request("/get-session", { cookies: aliceCookies })).body.user.id, alice.body.user.id);
+  assert.equal((await profileRequest({ cookies: aliceCookies })).body.profile.width, "WIDE");
   await pool.query('UPDATE "session" SET "expiresAt" = NOW() - INTERVAL \'1 hour\' WHERE id = $1', [bobSession.session.id]);
   assert.deepEqual((await request("/get-session", { cookies: bobCookies })).body, null);
+  assert.equal((await profileRequest({ cookies: bobCookies })).status, 401);
+  assert.equal((await profileRequest({ method: "PUT", cookies: bobCookies, body: answers() })).status, 401);
   console.log("Passed sign-out, wrong-password rejection, sign-in, expiry, and restart persistence.");
 
   await stop();
@@ -157,6 +214,7 @@ try {
   const unavailable = await request("/get-session");
   assert.equal(unavailable.status, 503);
   assert.deepEqual(unavailable.body, { error: "Authentication is unavailable." });
+  assert.equal((await profileRequest()).status, 503);
   assert.equal((await fetch(`${baseURL}/shoes`)).status, 200);
   console.log("Passed missing-secret handling and public catalogue access.");
 } catch (error) {
