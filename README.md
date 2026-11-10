@@ -85,7 +85,9 @@ At `/fit-records`, signed-in users can add a climbing shoe they tried, the EU si
 
 `GET /api/fit-records` returns the current account's records and catalogue shoe choices. `POST /api/fit-records` accepts JSON form values as strings: `shoeId`, `sizeEu`, `fit`, `rating`, and `notes`. Fit choices are `UNKNOWN`, `TIGHT`, `COMFORTABLE`, and `LOOSE`; an empty rating means unrated. Both operations require a server-validated session. The server sets ownership, returns private uncached responses, and checks the configured application Origin for writes.
 
-Apply the new `FitRecord` migration with `DOTENV_CONFIG_PATH=.env.local npm run db:deploy` before deployment. User deletion cascades to their records; a catalogue shoe referenced by a record cannot be deleted. This PR provides creation and viewing. Editing, deletion, and photos can follow separately.
+Apply the new `FitRecord` migration with `DOTENV_CONFIG_PATH=.env.local npm run db:deploy` before deployment. User deletion cascades to their records; a catalogue shoe referenced by a record cannot be deleted. Choose **Edit** on a saved record to change its shoe, size, fit, rating, or notes; **Cancel editing** discards those changes. **Delete** opens an inline confirmation. Only a confirmed successful deletion removes the record from the list. Failed requests retain the form and record for retry.
+
+`PATCH /api/fit-records` accepts the same fields plus `id`; `DELETE /api/fit-records` accepts `{ "id": "..." }`. Both check the session and Origin, and match the record ID together with its owner in the database operation. Missing and other-account records return the same 404 response. No additional migration is needed for editing and deletion.
 
 ## CI and deployment
 

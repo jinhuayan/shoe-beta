@@ -232,12 +232,38 @@ try {
   assert.equal((await recordsRequest({ cookies: aliceCookies })).body.records.length, 2);
   console.log("Passed fit record creation, validation, multiple fittings, cache headers, origin checks, and account isolation.");
 
+  const edited = await recordsRequest({ method: "PATCH", cookies: aliceCookies, body: recordAnswers({ id: firstRecord.body.record.id, userId: bob.body.user.id, sizeEu: "41.5", rating: "", notes: "Updated fitting" }) });
+  assert.equal(edited.status, 200);
+  assert.equal(edited.body.record.id, firstRecord.body.record.id);
+  assert.equal(edited.body.record.createdAt, firstRecord.body.record.createdAt);
+  assert.equal(edited.body.record.sizeEu, 41.5);
+  assert.equal(edited.body.record.rating, null);
+  for (const method of ["PATCH", "DELETE"]) {
+    assert.equal((await recordsRequest({ method, cookies: bobCookies, body: recordAnswers({ id: firstRecord.body.record.id }) })).status, 404);
+    assert.equal((await recordsRequest({ method, cookies: aliceCookies, body: recordAnswers({ id: "missing-record" }) })).status, 404);
+    assert.equal((await recordsRequest({ method, cookies: aliceCookies, body: recordAnswers({ id: "" }) })).status, 400);
+    assert.equal((await recordsRequest({ method, body: recordAnswers({ id: firstRecord.body.record.id }) })).status, 401);
+    assert.equal((await recordsRequest({ method, cookies: aliceCookies, body: recordAnswers({ id: firstRecord.body.record.id }), origin: "https://example.invalid" })).status, 403);
+    assert.equal((await recordsRequest({ method, cookies: aliceCookies, body: recordAnswers({ id: firstRecord.body.record.id }), origin: null })).status, 403);
+  }
+  assert.equal((await recordsRequest({ method: "PATCH", cookies: aliceCookies, body: recordAnswers({ id: firstRecord.body.record.id, sizeEu: "40.25" }) })).status, 400);
+  assert.equal((await recordsRequest({ cookies: aliceCookies })).body.records.find((record) => record.id === firstRecord.body.record.id).sizeEu, 41.5);
+  const temporary = await recordsRequest({ method: "POST", cookies: aliceCookies, body: recordAnswers() });
+  const deleted = await recordsRequest({ method: "DELETE", cookies: aliceCookies, body: { id: temporary.body.record.id } });
+  assert.equal(deleted.status, 200);
+  assert.deepEqual(deleted.body, { deleted: true });
+  assert.equal((await recordsRequest({ method: "DELETE", cookies: aliceCookies, body: { id: temporary.body.record.id } })).status, 404);
+  assert.equal((await recordsRequest({ cookies: aliceCookies })).body.records.length, 2);
+  assert.equal((await recordsRequest({ cookies: bobCookies })).body.records.length, 1);
+  console.log("Passed editing, deletion, ownership checks, rejected updates, and missing-record handling.");
+
   const oldAliceCookies = new Map(aliceCookies);
   assert.equal((await request("/sign-out", { method: "POST", cookies: aliceCookies, body: {} })).status, 200);
   assert.deepEqual((await request("/get-session", { cookies: oldAliceCookies })).body, null);
   assert.equal((await profileRequest({ cookies: oldAliceCookies })).status, 401);
   assert.equal((await profileRequest({ method: "PUT", cookies: oldAliceCookies, body: answers() })).status, 401);
   assert.equal((await recordsRequest({ cookies: oldAliceCookies })).status, 401);
+  for (const method of ["PATCH", "DELETE"]) assert.equal((await recordsRequest({ method, cookies: oldAliceCookies, body: recordAnswers({ id: firstRecord.body.record.id }) })).status, 401);
   assert.equal((await recordsRequest({ method: "POST", cookies: oldAliceCookies, body: recordAnswers() })).status, 401);
   const wrong = await request("/sign-in/email", { method: "POST", body: { email: emails[0], password: "Wrong-password-123!" } });
   assert.equal(wrong.status, 401);
@@ -253,6 +279,7 @@ try {
   assert.equal((await profileRequest({ cookies: bobCookies })).status, 401);
   assert.equal((await profileRequest({ method: "PUT", cookies: bobCookies, body: answers() })).status, 401);
   assert.equal((await recordsRequest({ cookies: bobCookies })).status, 401);
+  for (const method of ["PATCH", "DELETE"]) assert.equal((await recordsRequest({ method, cookies: bobCookies, body: recordAnswers({ id: firstRecord.body.record.id }) })).status, 401);
   assert.equal((await recordsRequest({ method: "POST", cookies: bobCookies, body: recordAnswers() })).status, 401);
   console.log("Passed sign-out, wrong-password rejection, sign-in, expiry, and restart persistence.");
 
