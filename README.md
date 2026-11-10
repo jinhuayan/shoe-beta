@@ -54,7 +54,9 @@ The scripts use Webpack for compatibility with the current development environme
 
 ## Authentication API
 
-[Better Auth](https://better-auth.com/docs/authentication/email-password) handles email/password accounts and database sessions under `/api/auth`. This PR provides the backend; sign-in screens come next. Email verification and password-reset delivery are not configured yet.
+[Better Auth](https://better-auth.com/docs/authentication/email-password) handles email/password accounts and database sessions under `/api/auth`. Visitors can register at `/sign-up` or sign in at `/sign-in`; success returns them to the climbing shoe catalogue. The shared header shows the current account and supports sign-out. Registration needs a name, email, and an 8–128 character password. Email verification and password-reset delivery are not configured yet.
+
+Forms show errors without clearing the entered details, and disable submission while a request is pending. Guests can still browse the catalogue and use the questionnaire. Signing in does not save questionnaire answers yet. An unavailable account service shows a retry option in the header without blocking guest pages.
 
 Add `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` to your local `.env.local`. Generate a random secret with `openssl rand -base64 32`; use `http://localhost:3000` as the local URL. In Vercel, set the secret for Production and Preview, and set the Production URL to `https://shoe-beta-one.vercel.app`. Preview deployments use `VERCEL_URL` when `BETTER_AUTH_URL` is unset. Keep the secret stable across deployments and out of Git.
 
