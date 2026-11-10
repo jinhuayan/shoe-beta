@@ -52,9 +52,26 @@ npm run build
 
 The scripts use Webpack for compatibility with the current development environment.
 
+## Authentication API
+
+[Better Auth](https://better-auth.com/docs/authentication/email-password) handles email/password accounts and database sessions under `/api/auth`. This PR provides the backend; sign-in screens come next. Email verification and password-reset delivery are not configured yet.
+
+Add `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` to your local `.env.local`. Generate a random secret with `openssl rand -base64 32`; use `http://localhost:3000` as the local URL. In Vercel, set the secret for Production and Preview, and set the Production URL to `https://shoe-beta-one.vercel.app`. Preview deployments use `VERCEL_URL` when `BETTER_AUTH_URL` is unset. Keep the secret stable across deployments and out of Git.
+
+| Endpoint | Method | Purpose |
+| --- | --- | --- |
+| `/api/auth/sign-up/email` | POST | Register with `name`, `email`, and `password` |
+| `/api/auth/sign-in/email` | POST | Sign in with `email` and `password` |
+| `/api/auth/get-session` | GET | Read the current session, or `null` for a visitor |
+| `/api/auth/sign-out` | POST | End the current session |
+
+Apply migrations before deploying. The migration adds auth tables and leaves shoe data intact. Auth initializes on its first request, so builds and public pages do not require an auth secret. Missing configuration returns 503 from the auth API.
+
+After a production build, `npm run test:auth` runs API integration tests using `TEST_DATABASE_URL`. It requires a loopback PostgreSQL database named `shoe_beta_auth_test`, applies migrations, and starts its own local server with a temporary secret. It checks registration, password rejection and hashing, session ownership, sign-out, expiry, restart persistence, origin checks, and missing configuration. It does not read `.env.local` or use the application database URL.
+
 ## CI and deployment
 
-[GitHub Actions](https://docs.github.com/en/actions/tutorials/build-and-test-code/nodejs) runs `.github/workflows/ci.yml` for pull requests targeting `main` (including new commits on an open PR) and pushes to `main`. It installs dependencies with `npm ci`, reads Node.js 24 from `.nvmrc`, then runs lint, typecheck, tests, Prisma validation, and the production build. These checks need no database or secrets; they do not test a live database connection. A feature-branch push without a PR does not trigger this workflow.
+[GitHub Actions](https://docs.github.com/en/actions/tutorials/build-and-test-code/nodejs) runs `.github/workflows/ci.yml` for pull requests targeting `main` (including new commits on an open PR) and pushes to `main`. It installs dependencies with `npm ci`, reads Node.js 24 from `.nvmrc`, then runs lint, typecheck, tests, Prisma validation, the production build, and auth API tests against a temporary PostgreSQL service. It needs no production database or secrets. A feature-branch push without a PR does not trigger this workflow.
 
 Use [Vercel's GitHub integration](https://vercel.com/docs/git/vercel-for-github) for CD. Configure the existing [Shoe Beta project](https://vercel.com/j-393b/shoe-beta) with these settings:
 
@@ -73,7 +90,7 @@ With Git integration enabled, Vercel creates preview deployments for branch push
 
 GitHub CI and Vercel automatic deployments run independently. This setup does not require additional Vercel Deployment Checks.
 
-Set `DATABASE_URL` in Vercel's environment variables to a hosted PostgreSQL database reachable from Vercel. Use a separate test database for Preview and the production database for Production; a local `localhost` database will not work there. From a trusted shell configured for each target database, run `npm run db:deploy` before deploying code that needs a new schema. Sample seeding is optional and separate. The build generates Prisma Client but does not migrate or seed a database. Redeploy after changing environment variables. See [Vercel environment variables](https://vercel.com/docs/environment-variables).
+The Prisma Postgres integration supplies `DATABASE_URL_POOLED` for application requests and a direct `DATABASE_URL` for migrations. The app prefers the pooled URL and falls back to the direct URL. Use a separate test database for Preview and the production database for Production; a local `localhost` database will not work on Vercel. From a trusted shell configured for each target database, run `npm run db:deploy` before deploying code that needs a new schema. With a direct URL in `.env.local`, run `DOTENV_CONFIG_PATH=.env.local npm run db:deploy`. Sample seeding is optional and separate. The build generates Prisma Client but does not migrate or seed a database. Redeploy after changing environment variables. See [Prisma Postgres on Vercel](https://www.prisma.io/docs/guides/postgres/vercel).
 
 ## Database setup
 
@@ -88,7 +105,7 @@ To prepare a local connection:
    cp .env.example .env
    ```
 
-The application uses `getDb()` from `src/lib/db.ts` in Server Components, Server Actions, or Route Handlers. The client is created when first requested and reused across requests and development reloads. Calling it requires `DATABASE_URL`; importing it does not open a connection. Keep this module on the server.
+The application uses `getDb()` from `src/lib/db.ts` in Server Components, Server Actions, or Route Handlers. The client is created when first requested and reused across requests and development reloads. Calling it requires `DATABASE_URL_POOLED` or `DATABASE_URL`; importing it does not open a connection. Prisma commands and the seed use the direct `DATABASE_URL`. Keep this module on the server.
 
 The `Shoe` model stores a unique slug, brand, model name, optional description, a sample-data flag, and climbing attributes: downturn, stiffness, closure, forefoot width, and heel volume. New attributes default to `UNKNOWN` for existing records. Generated files under `src/generated/prisma/` are ignored by Git and ESLint. Local `.env` files stay ignored; `.env.example` is tracked as a template.
 

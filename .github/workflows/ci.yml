@@ -18,6 +18,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: auth_test
+          POSTGRES_PASSWORD: auth_test
+          POSTGRES_DB: shoe_beta_auth_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U auth_test -d shoe_beta_auth_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -45,3 +60,8 @@ jobs:
 
       - name: Build Next.js
         run: npm run build
+
+      - name: Test authentication API
+        run: npm run test:auth
+        env:
+          TEST_DATABASE_URL: postgresql://auth_test:auth_test@127.0.0.1:5432/shoe_beta_auth_test
