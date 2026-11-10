@@ -50,6 +50,31 @@ npm run build
 
 The scripts use Webpack for compatibility with the current development environment.
 
+## CI and deployment
+
+[GitHub Actions](https://docs.github.com/en/actions/tutorials/build-and-test-code/nodejs) runs `.github/workflows/ci.yml` for pull requests targeting `main` (including new commits on an open PR) and pushes to `main`. It installs dependencies with `npm ci`, reads Node.js 24 from `.nvmrc`, then runs lint, typecheck, tests, Prisma validation, and the production build. These checks need no database or secrets; they do not test a live database connection. A feature-branch push without a PR does not trigger this workflow.
+
+Use [Vercel's GitHub integration](https://vercel.com/docs/git/vercel-for-github) for CD. Configure the existing [Shoe Beta project](https://vercel.com/j-393b/shoe-beta) with these settings:
+
+| Setting | Value |
+| --- | --- |
+| Git repository | `jinhuayan/shoe-beta` |
+| Production branch | `main` |
+| Root directory | Repository root (`.`), where `package.json` lives |
+| Framework preset | Next.js |
+| Node.js version | `24.x` |
+| Install command | `npm ci` |
+| Build command | `npm run build` |
+| Output directory | Next.js default |
+
+With Git integration enabled, Vercel creates preview deployments for branch pushes and production deployments for updates to `main`. GitHub Actions does not upload a build or need a Vercel token for this setup. Vercel performs its own build.
+
+CI and Vercel deployments run independently by default. Protect `main` with required pull requests and require the `check` job from the `CI` workflow to pass before merging. Enable the requirement after its first GitHub run, require branches to be up to date, and avoid bypassing the rule. See [required status checks](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches).
+
+To also hold production promotion until the checks for the deployed commit pass, open the Vercel project's **Settings → Deployment Checks → Add Checks**, choose GitHub, and select `check` from this workflow after its first run. Keep automatic production domain assignment enabled. Vercel can build in parallel with CI, then promote the deployment after the selected check succeeds. See [Vercel Deployment Checks](https://vercel.com/docs/deployment-checks). Branch protection alone only gates merging, not the subsequent production promotion.
+
+Set `DATABASE_URL` in Vercel's environment variables to a hosted PostgreSQL database reachable from Vercel. Use a separate test database for Preview and the production database for Production; a local `localhost` database will not work there. From a trusted shell configured for each target database, run `npm run db:deploy` before deploying code that needs a new schema. Sample seeding is optional and separate. The build generates Prisma Client but does not migrate or seed a database. Redeploy after changing environment variables. See [Vercel environment variables](https://vercel.com/docs/environment-variables).
+
 ## Database setup
 
 Prisma 7 is configured for PostgreSQL. Installation and builds generate Prisma Client automatically and can run before a database is configured.
