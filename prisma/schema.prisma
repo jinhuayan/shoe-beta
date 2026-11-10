@@ -7,11 +7,35 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Downturn {
+  NEUTRAL
+  MODERATE
+  AGGRESSIVE
+  UNKNOWN
+}
+
+enum Stiffness {
+  SOFT
+  MEDIUM
+  STIFF
+  UNKNOWN
+}
+
+enum Closure {
+  LACE_UP
+  HOOK_AND_LOOP
+  SLIPPER
+  UNKNOWN
+}
+
 model Shoe {
-  id          String  @id @default(cuid())
-  slug        String  @unique
+  id          String    @id @default(cuid())
+  slug        String    @unique
   brand       String
   model       String
   description String?
-  isSample    Boolean @default(false)
+  isSample    Boolean   @default(false)
+  downturn    Downturn  @default(UNKNOWN)
+  stiffness   Stiffness @default(UNKNOWN)
+  closure     Closure   @default(UNKNOWN)
 }

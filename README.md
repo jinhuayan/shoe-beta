@@ -15,6 +15,8 @@ Open the Local URL printed in the terminal, normally http://localhost:3000. The 
 
 Click a shoe name to open its details at `/shoes/[slug]`. Unknown shoe URLs show a not-found page with a link back to the catalogue.
 
+Filter climbing shoes by downturn, stiffness, and closure. Filters are saved in the URL and kept when opening a shoe and returning to the catalogue. Invalid or repeated filter values are ignored.
+
 ## Check
 
 ```bash
@@ -41,7 +43,7 @@ To prepare a local connection:
 
 The application uses `getDb()` from `src/lib/db.ts` in Server Components, Server Actions, or Route Handlers. The client is created when first requested and reused across requests and development reloads. Calling it requires `DATABASE_URL`; importing it does not open a connection. Keep this module on the server.
 
-The `Shoe` model stores a unique slug, brand, model name, optional description, and a sample-data flag. Generated files under `src/generated/prisma/` are ignored by Git and ESLint. Local `.env` files stay ignored; `.env.example` is tracked as a template.
+The `Shoe` model stores a unique slug, brand, model name, optional description, a sample-data flag, and climbing attributes: downturn, stiffness, and closure. New attributes default to `UNKNOWN` for existing records. Generated files under `src/generated/prisma/` are ignored by Git and ESLint. Local `.env` files stay ignored; `.env.example` is tracked as a template.
 
 Apply the included migration, regenerate the client, and optionally load the sample catalogue:
 
@@ -51,7 +53,9 @@ npm run db:generate
 npm run db:seed
 ```
 
-The seed inserts three **fictional** shoe entries marked as samples. Repeating it skips existing slugs, so it does not duplicate or overwrite records. It is development data, not verified product or sizing information.
+Restart the dev server after applying migrations and regenerating Prisma Client.
+
+The seed inserts three **fictional climbing shoes** marked as samples. Repeating it skips existing slugs and preserves names and descriptions. Existing sample shoes receive climbing attributes only when all three are still `UNKNOWN`; edited attributes and non-sample records are preserved. This is development data, not verified product or sizing information.
 
 The catalogue queries PostgreSQL on each request with a Server Component. It shows an empty state before shoes are added, a loading state while fetching, and a retry option if loading fails. A configured database with migrations applied is required to view the catalogue; production builds do not query it.
 
