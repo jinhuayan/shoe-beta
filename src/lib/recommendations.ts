@@ -1,12 +1,13 @@
 import type { Shoe } from "@/generated/prisma/client";
+import { heelVolumeLabels, widthLabels } from "./climbing-shoes";
 import type { QuestionnaireProfile } from "./questionnaire";
 
-export type RecommendationShoe = Pick<Shoe, "slug" | "brand" | "model" | "isSample" | "downturn" | "stiffness">;
+export type RecommendationShoe = Pick<Shoe, "slug" | "brand" | "model" | "isSample" | "downturn" | "stiffness" | "width" | "heelVolume">;
 export type RankedShoe = RecommendationShoe & { score: number; reasons: string[]; tradeoffs: string[] };
 export type RecommendationResponse = { status: "ranked" | "insufficient" | "empty"; shoes: RankedShoe[] };
 
 type Rule = {
-  attribute: "downturn" | "stiffness";
+  attribute: "downturn" | "stiffness" | "width" | "heelVolume";
   values: string[];
   points: number;
   mismatchPoints: number;
@@ -14,8 +15,26 @@ type Rule = {
   tradeoff: string;
 };
 
+const attributeLabels: Record<Rule["attribute"], string> = {
+  downturn: "Downturn", stiffness: "Stiffness", width: "Forefoot width", heelVolume: "Heel volume",
+};
+
 export function getRecommendationRules(profile: QuestionnaireProfile): Rule[] {
   const rules: Rule[] = [];
+  if (profile.width !== "UNKNOWN") {
+    rules.push({
+      attribute: "width", values: [profile.width], points: 3, mismatchPoints: -3,
+      reason: `Forefoot width matches your answer: ${widthLabels[profile.width].toLowerCase()}.`,
+      tradeoff: `Listed forefoot width differs from your answer (${widthLabels[profile.width].toLowerCase()}).`,
+    });
+  }
+  if (profile.heelVolume !== "UNKNOWN") {
+    rules.push({
+      attribute: "heelVolume", values: [profile.heelVolume], points: 2, mismatchPoints: -2,
+      reason: `Heel volume matches your answer: ${heelVolumeLabels[profile.heelVolume].toLowerCase()}.`,
+      tradeoff: `Listed heel volume differs from your answer (${heelVolumeLabels[profile.heelVolume].toLowerCase()}).`,
+    });
+  }
   if (profile.experience === "BEGINNER" || profile.fitPreference === "COMFORT") {
     rules.push({
       attribute: "downturn", values: ["NEUTRAL"], points: 2, mismatchPoints: -2,
@@ -53,7 +72,7 @@ export function recommendShoes(profile: QuestionnaireProfile, shoes: readonly Re
     for (const rule of rules) {
       const value = shoe[rule.attribute];
       if (value === "UNKNOWN") {
-        tradeoffs.push(`${rule.attribute === "downturn" ? "Downturn" : "Stiffness"} is unknown and was not scored.`);
+        tradeoffs.push(`${attributeLabels[rule.attribute]} is unknown and was not scored.`);
       } else if (rule.values.includes(value)) {
         score += rule.points;
         reasons.push(rule.reason);

@@ -27,16 +27,18 @@ The form accepts foot lengths from 100–400 mm in 0.1 mm increments and EU stre
 
 | Input | Rule | Points |
 | --- | --- | --- |
+| Foot width | Compare with the shoe's listed forefoot width | +3 match, −3 known mismatch |
+| Heel volume | Compare with the shoe's listed heel volume | +2 match, −2 known mismatch |
 | Beginner or comfort priority | Prefer neutral downturn; apply once even when both are selected | +2 neutral, −2 other known downturns |
 | Bouldering | Prefer soft construction for sensitivity | +1 soft, 0 otherwise |
 | Sport climbing | Prefer medium or stiff construction for support | +1 medium/stiff, 0 otherwise |
 | Trad climbing | Prefer stiff construction for support | +1 stiff, 0 otherwise |
 
-Unknown attributes contribute zero points and appear as tradeoffs. Only positive totals are shortlisted, with ties sorted by brand, model, then slug. With no applicable rules, the response is `insufficient`; with no positive candidates it is `empty`. Performance preference and advanced experience do not automatically favour aggressive downturn. Balanced, mixed, and unsure choices add no rule yet.
+Unknown attributes contribute zero points and appear as tradeoffs. Unsure foot-width and heel-volume answers add no rule. Only positive totals are shortlisted, with ties sorted by brand, model, then slug. With no applicable rules, the response is `insufficient`; with no positive candidates it is `empty`. Performance preference and advanced experience do not automatically favour aggressive downturn. Balanced, mixed, and unsure choices add no rule yet.
 
 The general starting points come from [SCARPA's shoe guide](https://www.scarpa.co.uk/blogs/blog/how-to-choose-a-climbing-shoe) and [construction guidance](https://scarpa.com/collections/climbing-shoes). The trad-support rule is our inference from long-route guidance. Weights and cutoffs are project choices, not manufacturer ratings or measured fit probabilities. Terrain can change which construction is suitable; reasons and tradeoffs describe these limited rules, not a guarantee of comfort or performance.
 
-Foot width, toe shape, heel volume, and measurements are not scored because the catalogue has no model-specific fit data yet. Size estimation remains unavailable; neither street size nor foot length is converted into a climbing shoe size. Fictional samples stay marked as samples in results.
+Width and heel-volume matching compare qualitative catalogue labels with questionnaire answers. The sample labels are fictional fixtures for checking the rules, not verified product fit data. Toe shape and measurements are not scored. Size estimation remains unavailable; neither street size nor foot length is converted into a climbing shoe size. Fictional samples stay marked as samples in results.
 
 ## Check
 
@@ -69,9 +71,7 @@ Use [Vercel's GitHub integration](https://vercel.com/docs/git/vercel-for-github)
 
 With Git integration enabled, Vercel creates preview deployments for branch pushes and production deployments for updates to `main`. GitHub Actions does not upload a build or need a Vercel token for this setup. Vercel performs its own build.
 
-CI and Vercel deployments run independently by default. Protect `main` with required pull requests and require the `check` job from the `CI` workflow to pass before merging. Enable the requirement after its first GitHub run, require branches to be up to date, and avoid bypassing the rule. See [required status checks](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches).
-
-To also hold production promotion until the checks for the deployed commit pass, open the Vercel project's **Settings → Deployment Checks → Add Checks**, choose GitHub, and select `check` from this workflow after its first run. Keep automatic production domain assignment enabled. Vercel can build in parallel with CI, then promote the deployment after the selected check succeeds. See [Vercel Deployment Checks](https://vercel.com/docs/deployment-checks). Branch protection alone only gates merging, not the subsequent production promotion.
+GitHub CI and Vercel automatic deployments run independently. This setup does not require additional Vercel Deployment Checks.
 
 Set `DATABASE_URL` in Vercel's environment variables to a hosted PostgreSQL database reachable from Vercel. Use a separate test database for Preview and the production database for Production; a local `localhost` database will not work there. From a trusted shell configured for each target database, run `npm run db:deploy` before deploying code that needs a new schema. Sample seeding is optional and separate. The build generates Prisma Client but does not migrate or seed a database. Redeploy after changing environment variables. See [Vercel environment variables](https://vercel.com/docs/environment-variables).
 
@@ -90,7 +90,7 @@ To prepare a local connection:
 
 The application uses `getDb()` from `src/lib/db.ts` in Server Components, Server Actions, or Route Handlers. The client is created when first requested and reused across requests and development reloads. Calling it requires `DATABASE_URL`; importing it does not open a connection. Keep this module on the server.
 
-The `Shoe` model stores a unique slug, brand, model name, optional description, a sample-data flag, and climbing attributes: downturn, stiffness, and closure. New attributes default to `UNKNOWN` for existing records. Generated files under `src/generated/prisma/` are ignored by Git and ESLint. Local `.env` files stay ignored; `.env.example` is tracked as a template.
+The `Shoe` model stores a unique slug, brand, model name, optional description, a sample-data flag, and climbing attributes: downturn, stiffness, closure, forefoot width, and heel volume. New attributes default to `UNKNOWN` for existing records. Generated files under `src/generated/prisma/` are ignored by Git and ESLint. Local `.env` files stay ignored; `.env.example` is tracked as a template.
 
 Apply the included migration, regenerate the client, and optionally load the sample catalogue:
 
@@ -102,7 +102,7 @@ npm run db:seed
 
 Restart the dev server after applying migrations and regenerating Prisma Client.
 
-The seed inserts three **fictional climbing shoes** marked as samples. Repeating it skips existing slugs and preserves names and descriptions. Existing sample shoes receive climbing attributes only when all three are still `UNKNOWN`; edited attributes and non-sample records are preserved. This is development data, not verified product or sizing information.
+The seed inserts three **fictional climbing shoes** marked as samples. Repeating it skips existing slugs and preserves names and descriptions. Existing sample shoes receive downturn/stiffness/closure only when all three are `UNKNOWN`, and width/heel volume only when both are `UNKNOWN`. Edited attribute groups and non-sample records are preserved. This is development data, not verified product or sizing information.
 
 The catalogue queries PostgreSQL on each request with a Server Component. It shows an empty state before shoes are added, a loading state while fetching, and a retry option if loading fails. A configured database with migrations applied is required to view the catalogue; production builds do not query it.
 
