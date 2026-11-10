@@ -110,6 +110,7 @@ model User {
 }
 
 model FitRecord {
+  photo     FitPhoto?
   id        String     @id @default(cuid())
   userId    String
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -124,6 +125,15 @@ model FitRecord {
 
   @@index([userId, createdAt])
   @@index([shoeId])
+}
+
+model FitPhoto {
+  recordId    String    @id
+  record      FitRecord @relation(fields: [recordId], references: [id], onDelete: Restrict)
+  objectKey   String    @unique
+  contentType String
+  size        Int
+  createdAt   DateTime  @default(now())
 }
 
 model ClimbingProfile {

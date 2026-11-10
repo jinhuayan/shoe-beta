@@ -1,4 +1,5 @@
 import { getAuth } from "@/lib/auth";
+import { Prisma } from "@/generated/prisma/client";
 import { getDb } from "@/lib/db";
 import { validateFitRecord } from "@/lib/fit-records";
 
@@ -37,6 +38,8 @@ async function handleRecords(request: Request) {
         return Response.json({ error: "Choose a fit record." }, { status: 400, headers });
       }
       if (request.method === "DELETE") {
+        const owned = await db.fitRecord.findFirst({ where: { id, userId }, select: { photo: { select: { recordId: true } } } });
+        if (owned?.photo) return Response.json({ error: "Remove the photo before deleting this fit record." }, { status: 409, headers });
         const deleted = await db.fitRecord.deleteMany({ where: { id, userId } });
         return deleted.count ? Response.json({ deleted: true }, { headers })
           : Response.json({ error: "Fit record not found." }, { status: 404, headers });
@@ -54,7 +57,10 @@ async function handleRecords(request: Request) {
     }
     const record = await db.fitRecord.create({ data: { userId, ...data }, select: recordSelect });
     return Response.json({ record }, { status: 201, headers });
-  } catch {
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003" && request.method === "DELETE") {
+      return Response.json({ error: "Remove the photo before deleting this fit record." }, { status: 409, headers });
+    }
     return Response.json({ error: "Fit records are unavailable. Please try again." }, { status: 503, headers });
   }
 }

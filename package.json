@@ -20,6 +20,7 @@
     "db:seed": "prisma db seed"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1166.0",
     "@better-auth/prisma-adapter": "1.7.19",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",

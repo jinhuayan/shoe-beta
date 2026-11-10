@@ -85,9 +85,34 @@ At `/fit-records`, signed-in users can add a climbing shoe they tried, the EU si
 
 `GET /api/fit-records` returns the current account's records and catalogue shoe choices. `POST /api/fit-records` accepts JSON form values as strings: `shoeId`, `sizeEu`, `fit`, `rating`, and `notes`. Fit choices are `UNKNOWN`, `TIGHT`, `COMFORTABLE`, and `LOOSE`; an empty rating means unrated. Both operations require a server-validated session. The server sets ownership, returns private uncached responses, and checks the configured application Origin for writes.
 
-Apply the new `FitRecord` migration with `DOTENV_CONFIG_PATH=.env.local npm run db:deploy` before deployment. User deletion cascades to their records; a catalogue shoe referenced by a record cannot be deleted. Choose **Edit** on a saved record to change its shoe, size, fit, rating, or notes; **Cancel editing** discards those changes. **Delete** opens an inline confirmation. Only a confirmed successful deletion removes the record from the list. Failed requests retain the form and record for retry.
+Apply the new `FitRecord` migration with `DOTENV_CONFIG_PATH=.env.local npm run db:deploy` before deployment. User deletion cascades to their records after attached photos have been removed; a catalogue shoe referenced by a record cannot be deleted. Choose **Edit** on a saved record to change its shoe, size, fit, rating, or notes; **Cancel editing** discards those changes. **Delete** opens an inline confirmation. Only a confirmed successful deletion removes the record from the list. Failed requests retain the form and record for retry.
 
 `PATCH /api/fit-records` accepts the same fields plus `id`; `DELETE /api/fit-records` accepts `{ "id": "..." }`. Both check the session and Origin, and match the record ID together with its owner in the database operation. Missing and other-account records return the same 404 response. No additional migration is needed for editing and deletion.
+
+## Private photo API
+
+The photo backend supports one JPEG or PNG per fit record, up to 2 MiB. Photo buttons will be added separately. The server checks the session, record ownership, declared MIME type, and file signatures. Signature checks do not fully decode images. Objects are private; object keys and original filenames are not returned to clients.
+
+`/api/fit-records/[id]/photo` supports `POST` with one multipart `photo` field, `GET` for inline viewing, `GET ?download=1` for download, and `DELETE` to remove the photo. Writes require the configured application Origin. Another user's record returns 404. A second upload returns 409. Remove the photo before deleting its fit record; a restrictive foreign key also protects concurrent uploads from record deletion.
+
+Uploads that fail storage or metadata creation attempt object cleanup. Photo deletion removes storage first, retaining metadata if storage fails so it can be retried. Storage and PostgreSQL do not share a transaction: a storage outage during cleanup can leave an orphan object requiring manual reconciliation. Requests fail with 503 when storage is unavailable or unconfigured. The existing CI integration test uses a local S3 HTTP test double with dummy credentials, not real Spaces; it covers upload, viewing/download, removal, access controls, limits, concurrent uploads, and failure recovery. Real Spaces connectivity still needs a smoke test after configuration.
+
+### Configure DigitalOcean Spaces
+
+1. In [DigitalOcean](https://cloud.digitalocean.com), open **Spaces Object Storage → Create Bucket**. Choose **Standard Storage**, a region, and a unique bucket name. Review the displayed charges before creating it; the first bucket starts a Spaces subscription. Keep CDN off for this private server-mediated flow. See [bucket creation](https://docs.digitalocean.com/products/spaces/how-to/create/).
+2. Keep bucket file listing restricted and objects private. The upload API explicitly sets the private ACL. Do not add a public bucket policy.
+3. Open **Spaces Object Storage → Access Keys → Create Access Key**. Choose **Limited access**, select this bucket, and grant **Read/Write/Delete**. Save the access key and one-time secret privately. See [access-key setup](https://docs.digitalocean.com/products/spaces/how-to/manage-access/).
+4. Add these values to `.env.local`, and to the Vercel project's environment variables. Use a separate bucket/key for Preview. Do not use `NEXT_PUBLIC_` prefixes or commit secrets.
+
+   ```dotenv
+   SPACES_ENDPOINT="https://nyc3.digitaloceanspaces.com"
+   SPACES_BUCKET="your-bucket-name"
+   SPACES_ACCESS_KEY_ID="your-access-key"
+   SPACES_SECRET_ACCESS_KEY="your-secret-key"
+   ```
+
+   Replace `nyc3` with the chosen region. Use the regional origin endpoint, without the bucket name or CDN hostname. The SDK uses `us-east-1` for signing and the endpoint selects the actual datacenter, following [DigitalOcean's SDK example](https://docs.digitalocean.com/products/spaces/reference/aws-sdks/). No browser-to-bucket CORS rule is needed because the app server transfers files.
+5. Apply `DOTENV_CONFIG_PATH=.env.local npm run db:deploy`, restart local development, and redeploy Vercel after setting its variables. Test the API with a disposable signed-in account: upload, view, download, remove, and reject another account. Never send keys in chat or screenshots.
 
 ## CI and deployment
 
