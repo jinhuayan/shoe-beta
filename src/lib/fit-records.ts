@@ -3,6 +3,7 @@ export const fitLabels = { UNKNOWN: "Unsure", TIGHT: "Too tight", COMFORTABLE: "
 export type FitRecordErrors = Partial<Record<"shoeId" | "sizeEu" | "fit" | "rating" | "notes", string>>;
 export type RecordShoe = { id: string; slug: string; brand: string; model: string; isSample: boolean };
 export type SavedFitRecord = {
+  photo: { recordId: string } | null;
   id: string;
   shoe: RecordShoe;
   sizeEu: number;

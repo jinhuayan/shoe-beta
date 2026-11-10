@@ -307,6 +307,8 @@ try {
   const uploads = await Promise.all([photoRequest("POST", aliceCookies, photoForm()), photoRequest("POST", aliceCookies, photoForm())]);
   assert.deepEqual(uploads.map((r) => r.status).sort(), [201, 409]);
   assert.equal(objects.size, 1);
+  const photoState = (await recordsRequest({ cookies: aliceCookies })).body.records.find((record) => record.id === firstRecord.body.record.id).photo;
+  assert.deepEqual(photoState, { recordId: firstRecord.body.record.id });
   const viewed = await photoRequest("GET");
   assert.equal(viewed.status, 200);
   assert.equal(viewed.headers.get("content-type"), "image/png");
@@ -323,6 +325,7 @@ try {
   assert.equal((await photoRequest("GET")).status, 200);
   assert.equal((await photoRequest("DELETE")).status, 200);
   assert.equal((await photoRequest("GET")).status, 404);
+  assert.equal((await recordsRequest({ cookies: aliceCookies })).body.records.find((record) => record.id === firstRecord.body.record.id).photo, null);
   assert.equal(objects.size, 0);
   assert.equal((await recordsRequest({ cookies: aliceCookies })).body.records.length, 2);
   console.log("Passed private photo uploads, download, removal, ownership, limits, concurrency, and storage/database failure cleanup.");

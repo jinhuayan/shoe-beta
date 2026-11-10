@@ -5,7 +5,7 @@ import { validateFitRecord } from "@/lib/fit-records";
 
 const headers = { "Cache-Control": "private, no-store" };
 const shoeSelect = { id: true, slug: true, brand: true, model: true, isSample: true } as const;
-const recordSelect = { id: true, sizeEu: true, fit: true, rating: true, notes: true, createdAt: true, shoe: { select: shoeSelect } } as const;
+const recordSelect = { photo: { select: { recordId: true } }, id: true, sizeEu: true, fit: true, rating: true, notes: true, createdAt: true, shoe: { select: shoeSelect } } as const;
 
 async function handleRecords(request: Request) {
   try {
@@ -51,13 +51,15 @@ async function handleRecords(request: Request) {
       return Response.json({ errors: { shoeId: "Choose an available climbing shoe." } }, { status: 400, headers });
     }
     if (request.method === "PATCH") {
-      const records = await db.fitRecord.updateManyAndReturn({ where: { id: id as string, userId }, data, select: recordSelect });
-      return records.length ? Response.json({ record: records[0] }, { headers })
-        : Response.json({ error: "Fit record not found." }, { status: 404, headers });
+      const record = await db.fitRecord.update({ where: { id: id as string, userId }, data, select: recordSelect });
+      return Response.json({ record }, { headers });
     }
     const record = await db.fitRecord.create({ data: { userId, ...data }, select: recordSelect });
     return Response.json({ record }, { status: 201, headers });
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025" && request.method === "PATCH") {
+      return Response.json({ error: "Fit record not found." }, { status: 404, headers });
+    }
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003" && request.method === "DELETE") {
       return Response.json({ error: "Remove the photo before deleting this fit record." }, { status: 409, headers });
     }
