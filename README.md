@@ -1,6 +1,6 @@
 # Shoe Beta
 
-Initial Next.js setup with TypeScript and Tailwind CSS.
+A climbing-shoe project built with Next.js, TypeScript, Tailwind CSS, and PostgreSQL. The first feature is a read-only shoe catalogue.
 
 ## Run
 
@@ -11,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-Open the Local URL printed in the terminal, normally http://localhost:3000.
+Open the Local URL printed in the terminal, normally http://localhost:3000. The home route redirects to `/shoes`.
 
 ## Check
 
@@ -39,13 +39,18 @@ To prepare a local connection:
 
 The application uses `getDb()` from `src/lib/db.ts` in Server Components, Server Actions, or Route Handlers. The client is created when first requested and reused across requests and development reloads. Calling it requires `DATABASE_URL`; importing it does not open a connection. Keep this module on the server.
 
-The schema currently contains no application models; Prisma 7 can still generate the client at this setup stage. Generated files under `src/generated/prisma/` are ignored by Git and ESLint. Local `.env` files stay ignored; `.env.example` is tracked as a template.
+The `Shoe` model stores a unique slug, brand, model name, optional description, and a sample-data flag. Generated files under `src/generated/prisma/` are ignored by Git and ESLint. Local `.env` files stay ignored; `.env.example` is tracked as a template.
 
-After adding the first models, create and apply a migration against the separate project database:
+Apply the included migration, regenerate the client, and optionally load the sample catalogue:
 
 ```bash
-npm run db:migrate -- --name init
+npm run db:deploy
 npm run db:generate
+npm run db:seed
 ```
 
-Use `npm run db:studio` to inspect a configured database. No migrations or database changes have been applied as part of this setup.
+The seed inserts three **fictional** shoe entries marked as samples. Repeating it skips existing slugs, so it does not duplicate or overwrite records. It is development data, not verified product or sizing information.
+
+The catalogue queries PostgreSQL on each request with a Server Component. It shows an empty state before shoes are added, a loading state while fetching, and a retry option if loading fails. A configured database with migrations applied is required to view the catalogue; production builds do not query it.
+
+For future schema changes, use `npm run db:migrate -- --name NAME` and commit the generated migration. Use `npm run db:studio` to inspect a configured database.

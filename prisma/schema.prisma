@@ -6,3 +6,12 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model Shoe {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  brand       String
+  model       String
+  description String?
+  isSample    Boolean @default(false)
+}
