@@ -58,6 +58,7 @@ export default async function ShoePage({ params, searchParams }: ShoePageProps) 
           <dd className="mt-1 font-medium">{heelVolumeLabels[shoe.heelVolume]}</dd>
         </div>
       </dl>
+      <Link href={{ pathname: "/fit-records", query: { shoe: shoe.slug } }} className="inline-block rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">Record a fitting</Link>
     </main>
   );
 }
