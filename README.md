@@ -17,11 +17,16 @@ Click a shoe name to open its details at `/shoes/[slug]`. Unknown shoe URLs show
 
 Filter climbing shoes by downturn, stiffness, and closure. Filters are saved in the URL and kept when opening a shoe and returning to the catalogue. Invalid or repeated filter values are ignored.
 
+At `/questionnaire`, visitors can enter foot measurements, foot shape, climbing experience, discipline, and fit preference, then review and edit their answers. Measurements are optional and every choice supports “Unsure”. The form validates answers on the server without a database or account, and keeps them only in the current page state. Reloading clears them. This step does not rank shoes or estimate sizes yet.
+
+The form accepts foot lengths from 100–400 mm in 0.1 mm increments and EU street sizes from 20–55 in half-size increments. These are input limits, not sizing rules; no conversion or downsizing formula is applied.
+
 ## Check
 
 ```bash
 npm run lint
 npm run typecheck
+npm test
 npm run db:validate
 npm run build
 ```

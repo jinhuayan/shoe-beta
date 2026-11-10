@@ -21,6 +21,7 @@ export default async function ShoesPage({ searchParams }: { searchParams: Promis
         <p className="text-sm font-medium text-stone-500">Shoe Beta</p>
         <h1 className="text-3xl font-semibold tracking-tight">Climbing shoe catalogue</h1>
         <p className="text-stone-600">Browse climbing shoes by downturn, stiffness, and closure.</p>
+        <Link href="/questionnaire" className="inline-block rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">Review your feet and climbing preferences</Link>
       </header>
 
       <form
