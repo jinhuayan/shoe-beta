@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { reviewAnswers } from "@/app/questionnaire/actions";
+import { RecommendationResults } from "@/components/recommendation-results";
 import { choiceFields, measurementFields, type QuestionnaireState } from "@/lib/questionnaire";
 
 const initialState: QuestionnaireState = { values: {}, errors: {}, profile: null };
@@ -37,6 +38,7 @@ export function QuestionnaireForm() {
           ))}
         </dl>
         <button type="button" onClick={() => setEditing(true)} className="rounded-lg border border-stone-300 px-4 py-2 focus-visible:outline-2 focus-visible:outline-offset-2">Edit answers</button>
+        <RecommendationResults values={state.values} />
       </section>
     );
   }

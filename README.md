@@ -17,9 +17,26 @@ Click a shoe name to open its details at `/shoes/[slug]`. Unknown shoe URLs show
 
 Filter climbing shoes by downturn, stiffness, and closure. Filters are saved in the URL and kept when opening a shoe and returning to the catalogue. Invalid or repeated filter values are ignored.
 
-At `/questionnaire`, visitors can enter foot measurements, foot shape, climbing experience, discipline, and fit preference, then review and edit their answers. Measurements are optional and every choice supports “Unsure”. The form validates answers on the server without a database or account, and keeps them only in the current page state. Reloading clears them. This step does not rank shoes or estimate sizes yet.
+At `/questionnaire`, visitors can enter foot measurements, foot shape, climbing experience, discipline, and fit preference, then review and edit their answers. Measurements are optional and every choice supports “Unsure”. Reviewing answers works without a database or account and keeps them only in the current page state. Reloading clears them. Choose **Find climbing shoes** after reviewing to request a shortlist from the configured catalogue.
 
 The form accepts foot lengths from 100–400 mm in 0.1 mm increments and EU street sizes from 20–55 in half-size increments. These are input limits, not sizing rules; no conversion or downsizing formula is applied.
+
+## First recommendation rules
+
+`POST /api/recommendations` accepts the same form fields as the questionnaire (multipart or URL-encoded form data). It validates them again, reads the catalogue, and returns up to three shoes with reasons and tradeoffs. Invalid submissions return 400; catalogue failures return 503 and can be retried without re-entering answers. No profile is stored.
+
+| Input | Rule | Points |
+| --- | --- | --- |
+| Beginner or comfort priority | Prefer neutral downturn; apply once even when both are selected | +2 neutral, −2 other known downturns |
+| Bouldering | Prefer soft construction for sensitivity | +1 soft, 0 otherwise |
+| Sport climbing | Prefer medium or stiff construction for support | +1 medium/stiff, 0 otherwise |
+| Trad climbing | Prefer stiff construction for support | +1 stiff, 0 otherwise |
+
+Unknown attributes contribute zero points and appear as tradeoffs. Only positive totals are shortlisted, with ties sorted by brand, model, then slug. With no applicable rules, the response is `insufficient`; with no positive candidates it is `empty`. Performance preference and advanced experience do not automatically favour aggressive downturn. Balanced, mixed, and unsure choices add no rule yet.
+
+The general starting points come from [SCARPA's shoe guide](https://www.scarpa.co.uk/blogs/blog/how-to-choose-a-climbing-shoe) and [construction guidance](https://scarpa.com/collections/climbing-shoes). The trad-support rule is our inference from long-route guidance. Weights and cutoffs are project choices, not manufacturer ratings or measured fit probabilities. Terrain can change which construction is suitable; reasons and tradeoffs describe these limited rules, not a guarantee of comfort or performance.
+
+Foot width, toe shape, heel volume, and measurements are not scored because the catalogue has no model-specific fit data yet. Size estimation remains unavailable; neither street size nor foot length is converted into a climbing shoe size. Fictional samples stay marked as samples in results.
 
 ## Check
 
