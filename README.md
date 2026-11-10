@@ -17,13 +17,13 @@ Click a shoe name to open its details at `/shoes/[slug]`. Unknown shoe URLs show
 
 Filter climbing shoes by downturn, stiffness, and closure. Filters are saved in the URL and kept when opening a shoe and returning to the catalogue. Invalid or repeated filter values are ignored.
 
-At `/questionnaire`, visitors can enter foot measurements, foot shape, climbing experience, discipline, and fit preference, then review and edit their answers. Measurements are optional and every choice supports “Unsure”. Reviewing answers works without a database or account and keeps them only in the current page state. Reloading clears them. Choose **Find climbing shoes** after reviewing to request a shortlist from the configured catalogue.
+At `/questionnaire`, visitors can enter foot measurements, foot shape, climbing experience, discipline, and fit preference, then review and edit their answers. Measurements are optional and every choice supports “Unsure”. Guest answers stay in the current page state. Signed-in users can explicitly save and load a profile. Choose **Find climbing shoes** after reviewing to request a shortlist from the configured catalogue.
 
 The form accepts foot lengths from 100–400 mm in 0.1 mm increments and EU street sizes from 20–55 in half-size increments. These are input limits, not sizing rules; no conversion or downsizing formula is applied.
 
 ## First recommendation rules
 
-`POST /api/recommendations` accepts the same form fields as the questionnaire (multipart or URL-encoded form data). It validates them again, reads the catalogue, and returns up to three shoes with reasons and tradeoffs. Invalid submissions return 400; catalogue failures return 503 and can be retried without re-entering answers. No profile is stored.
+`POST /api/recommendations` accepts the same form fields as the questionnaire (multipart or URL-encoded form data). It validates them again, reads the catalogue, and returns up to three shoes with reasons and tradeoffs. Invalid submissions return 400; catalogue failures return 503 and can be retried without re-entering answers. Recommendation requests do not save a profile.
 
 | Input | Rule | Points |
 | --- | --- | --- |
@@ -56,7 +56,7 @@ The scripts use Webpack for compatibility with the current development environme
 
 [Better Auth](https://better-auth.com/docs/authentication/email-password) handles email/password accounts and database sessions under `/api/auth`. Visitors can register at `/sign-up` or sign in at `/sign-in`; success returns them to the climbing shoe catalogue. The shared header shows the current account and supports sign-out. Registration needs a name, email, and an 8–128 character password. Email verification and password-reset delivery are not configured yet.
 
-Forms show errors without clearing the entered details, and disable submission while a request is pending. Guests can still browse the catalogue and use the questionnaire. Signing in does not save questionnaire answers yet. An unavailable account service shows a retry option in the header without blocking guest pages.
+Forms show errors without clearing the entered details, and disable submission while a request is pending. Guests can still browse the catalogue and use the questionnaire. An unavailable account service shows a retry option in the header without blocking guest pages.
 
 Add `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` to your local `.env.local`. Generate a random secret with `openssl rand -base64 32`; use `http://localhost:3000` as the local URL. In Vercel, set the secret for Production and Preview, and set the Production URL to `https://shoe-beta-one.vercel.app`. Preview deployments use `VERCEL_URL` when `BETTER_AUTH_URL` is unset. Keep the secret stable across deployments and out of Git.
 
@@ -69,7 +69,15 @@ Add `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` to your local `.env.local`. Gener
 
 Apply migrations before deploying. The migration adds auth tables and leaves shoe data intact. Auth initializes on its first request, so builds and public pages do not require an auth secret. Missing configuration returns 503 from the auth API.
 
-After a production build, `npm run test:auth` runs API integration tests using `TEST_DATABASE_URL`. It requires a loopback PostgreSQL database named `shoe_beta_auth_test`, applies migrations, and starts its own local server with a temporary secret. It checks registration, password rejection and hashing, session ownership, sign-out, expiry, restart persistence, origin checks, and missing configuration. It does not read `.env.local` or use the application database URL.
+After a production build, `npm run test:auth` runs API integration tests using `TEST_DATABASE_URL`. It requires a loopback PostgreSQL database named `shoe_beta_auth_test`, applies migrations, and starts its own local server with a temporary secret. It checks registration, password rejection and hashing, session ownership, sign-out, expiry, restart persistence, origin checks, and missing configuration. Profile checks cover saving, updating, validation, and cross-account access. It does not read `.env.local` or use the application database URL.
+
+## Saved profiles
+
+Sign in before entering questionnaire answers. After reviewing, choose **Save profile** to create or replace your account's saved measurements and climbing preferences. **Load saved profile** replaces the current answers and opens the review; loading is manual. Reloading or switching accounts clears unsaved answers, and signing out clears the form. Guest reviewing and recommendations remain available.
+
+`GET /api/profile` returns the current account's validated questionnaire state, or `null` before its first save. `PUT /api/profile` accepts the questionnaire form fields. Both require a valid server-checked session; the server derives ownership from that session. Responses are private and uncached, and writes require a matching Origin. Invalid answers return 400, expired or missing sessions return 401, and unavailable services return 503.
+
+The migration adds one `ClimbingProfile` row per user, containing both foot measurements and climbing preferences. Apply it with `DOTENV_CONFIG_PATH=.env.local npm run db:deploy` before deploying this change.
 
 ## CI and deployment
 

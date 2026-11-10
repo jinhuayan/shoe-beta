@@ -13,7 +13,7 @@ export default function QuestionnairePage() {
         <p className="text-sm font-medium text-stone-500">Shoe Beta</p>
         <h1 className="text-3xl font-semibold tracking-tight">Your feet and climbing</h1>
         <p className="text-stone-600">Review your measurements and preferences. Leave measurements blank or choose “Unsure” when needed.</p>
-        <p className="text-sm text-stone-500">No account needed. Answers stay on this page and are cleared when you reload.</p>
+        <p className="text-sm text-stone-500">No account needed. Signed-in users can save and load a profile. Unsaved answers are cleared when you reload or switch accounts.</p>
       </header>
       <QuestionnaireForm />
     </main>
