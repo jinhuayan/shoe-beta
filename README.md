@@ -69,7 +69,7 @@ Add `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` to your local `.env.local`. Gener
 
 Apply migrations before deploying. The migration adds auth tables and leaves shoe data intact. Auth initializes on its first request, so builds and public pages do not require an auth secret. Missing configuration returns 503 from the auth API.
 
-After a production build, `npm run test:auth` runs API integration tests using `TEST_DATABASE_URL`. It requires a loopback PostgreSQL database named `shoe_beta_auth_test`, applies migrations, and starts its own local server with a temporary secret. It checks registration, password rejection and hashing, session ownership, sign-out, expiry, restart persistence, origin checks, and missing configuration. Profile checks cover saving, updating, validation, and cross-account access. It does not read `.env.local` or use the application database URL.
+After a production build, `npm run test:auth` runs API integration tests using `TEST_DATABASE_URL`. It requires a loopback PostgreSQL database named `shoe_beta_auth_test`, applies migrations, and starts its own local server with a temporary secret. It checks registration, password rejection and hashing, session ownership, sign-out, expiry, restart persistence, origin checks, and missing configuration. Profile checks cover saving, updating, validation, and cross-account access. Fit record checks cover creation, repeated fittings, input limits, and ownership. It does not read `.env.local` or use the application database URL.
 
 ## Saved profiles
 
@@ -78,6 +78,14 @@ Sign in before entering questionnaire answers. After reviewing, choose **Save pr
 `GET /api/profile` returns the current account's validated questionnaire state, or `null` before its first save. `PUT /api/profile` accepts the questionnaire form fields. Both require a valid server-checked session; the server derives ownership from that session. Responses are private and uncached, and writes require a matching Origin. Invalid answers return 400, expired or missing sessions return 401, and unavailable services return 503.
 
 The migration adds one `ClimbingProfile` row per user, containing both foot measurements and climbing preferences. Apply it with `DOTENV_CONFIG_PATH=.env.local npm run db:deploy` before deploying this change.
+
+## Fit records
+
+At `/fit-records`, signed-in users can add a climbing shoe they tried, the EU size worn, overall fit, optional 1–5 rating, and notes up to 1,000 characters. The current form accepts EU sizes from 20 to 55 in whole or half sizes; these are input limits, not sizing advice. Each save creates a separate record, so the same shoe can be tried in several sizes. Records appear newest first. Shoe details link to the form with that shoe preselected.
+
+`GET /api/fit-records` returns the current account's records and catalogue shoe choices. `POST /api/fit-records` accepts JSON form values as strings: `shoeId`, `sizeEu`, `fit`, `rating`, and `notes`. Fit choices are `UNKNOWN`, `TIGHT`, `COMFORTABLE`, and `LOOSE`; an empty rating means unrated. Both operations require a server-validated session. The server sets ownership, returns private uncached responses, and checks the configured application Origin for writes.
+
+Apply the new `FitRecord` migration with `DOTENV_CONFIG_PATH=.env.local npm run db:deploy` before deployment. User deletion cascades to their records; a catalogue shoe referenced by a record cannot be deleted. This PR provides creation and viewing. Editing, deletion, and photos can follow separately.
 
 ## CI and deployment
 

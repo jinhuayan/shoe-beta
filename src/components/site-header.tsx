@@ -34,6 +34,7 @@ export function SiteHeader() {
         <div className="flex items-center gap-4">
           <Link href="/shoes" className={`${linkClass} font-semibold`}>Shoe Beta</Link>
           <Link href="/questionnaire" className={linkClass}>Questionnaire</Link>
+          <Link href="/fit-records" className={linkClass}>Fit records</Link>
         </div>
         <div className="flex flex-wrap items-center gap-4" aria-live="polite">
           {isPending ? <span className="text-stone-500">Checking account…</span> : session ? (

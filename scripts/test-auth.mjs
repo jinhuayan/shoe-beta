@@ -35,6 +35,7 @@ const secret = randomBytes(32).toString("base64");
 const runtime = await mkdtemp(join(tmpdir(), "shoe-beta-auth-"));
 const emails = [`alice-${randomUUID()}@example.test`, `bob-${randomUUID()}@example.test`];
 const password = "Climbing-test-password-123!";
+const fitShoeId = `fit-${randomUUID()}`;
 let app;
 let logs = "";
 
@@ -91,6 +92,8 @@ async function request(path, { method = "GET", body, cookies = new Map(), origin
 }
 
 const profileRequest = (options = {}) => request("", { ...options, api: "/api/profile" });
+const recordsRequest = (options = {}) => request("", { ...options, api: "/api/fit-records" });
+const recordAnswers = (overrides = {}) => ({ shoeId: fitShoeId, sizeEu: "40.5", fit: "COMFORTABLE", rating: "4", notes: "Heel holds well.\nToes have room.", ...overrides });
 function answers(overrides = {}) {
   const data = new FormData();
   for (const [name, value] of Object.entries({
@@ -108,6 +111,7 @@ try {
   const shoesBefore = existing.rows[0].name ? (await pool.query('SELECT * FROM "Shoe" ORDER BY id')).rows : null;
   execFileSync("npm", ["run", "db:deploy"], { cwd: project, env, stdio: "inherit" });
   if (shoesBefore) assert.deepEqual((await pool.query('SELECT * FROM "Shoe" ORDER BY id')).rows, shoesBefore);
+  await pool.query('INSERT INTO "Shoe" (id, slug, brand, model, "isSample") VALUES ($1, $2, $3, $4, true)', [fitShoeId, fitShoeId, "Fit test", "Climbing shoe"]);
   await start();
 
   assert.deepEqual((await request("/get-session")).body, null);
@@ -183,11 +187,58 @@ try {
   assert.equal((await profileRequest({ cookies: aliceCookies })).body.profile.width, "WIDE");
   console.log("Passed profile creation, updates, validation, cache headers, origin checks, and account isolation.");
 
+  assert.equal((await recordsRequest()).status, 401);
+  assert.equal((await recordsRequest({ method: "POST", body: recordAnswers() })).status, 401);
+  const emptyRecords = await recordsRequest({ cookies: aliceCookies });
+  assert.equal(emptyRecords.status, 200);
+  assert.deepEqual(emptyRecords.body.records, []);
+  assert.ok(emptyRecords.body.shoes.some((shoe) => shoe.id === fitShoeId));
+  const firstRecord = await recordsRequest({ method: "POST", cookies: aliceCookies, body: recordAnswers() });
+  assert.equal(firstRecord.status, 201);
+  assert.equal(firstRecord.body.record.sizeEu, 40.5);
+  assert.equal(firstRecord.body.record.rating, 4);
+  assert.equal(firstRecord.body.record.notes, recordAnswers().notes);
+  assert.equal(firstRecord.body.record.shoe.id, fitShoeId);
+  assert.equal(firstRecord.body.record.shoe.isSample, true);
+  assert.ok(!Object.hasOwn(firstRecord.body.record, "userId"));
+  const secondRecord = await recordsRequest({ method: "POST", cookies: aliceCookies, body: recordAnswers({ sizeEu: "41", fit: "UNKNOWN", rating: "", notes: "" }) });
+  assert.equal(secondRecord.status, 201);
+  assert.equal(secondRecord.body.record.rating, null);
+  assert.notEqual(firstRecord.body.record.id, secondRecord.body.record.id);
+  const aliceRecords = await recordsRequest({ cookies: aliceCookies });
+  assert.equal(aliceRecords.body.records.length, 2);
+  assert.match(aliceRecords.cacheControl, /private/);
+  assert.match(aliceRecords.cacheControl, /no-store/);
+  const hiddenRecords = await request(`?userId=${alice.body.user.id}`, { api: "/api/fit-records", cookies: bobCookies });
+  assert.deepEqual(hiddenRecords.body.records, []);
+  const bobRecord = await recordsRequest({ method: "POST", cookies: bobCookies, body: recordAnswers({ userId: alice.body.user.id, id: firstRecord.body.record.id, notes: "Bob's own fitting" }) });
+  assert.equal(bobRecord.status, 201);
+  assert.notEqual(bobRecord.body.record.id, firstRecord.body.record.id);
+  assert.equal((await recordsRequest({ cookies: aliceCookies })).body.records.length, 2);
+  const bobRecords = (await recordsRequest({ cookies: bobCookies })).body.records;
+  assert.equal(bobRecords.length, 1);
+  assert.equal(bobRecords[0].notes, "Bob's own fitting");
+  for (const invalid of [
+    { sizeEu: "19" }, { sizeEu: "40.25" }, { sizeEu: "4e1" }, { sizeEu: 40 },
+    { rating: "6" }, { notes: "x".repeat(1001) }, { fit: "PERFECT" }, { shoeId: "missing-shoe" },
+  ]) {
+    const rejected = await recordsRequest({ method: "POST", cookies: aliceCookies, body: recordAnswers(invalid) });
+    assert.equal(rejected.status, 400);
+    assert.ok(Object.keys(rejected.body.errors).length);
+  }
+  assert.equal((await recordsRequest({ method: "POST", cookies: aliceCookies, body: "bad body" })).status, 400);
+  assert.equal((await recordsRequest({ method: "POST", cookies: aliceCookies, body: recordAnswers(), origin: "https://example.invalid" })).status, 403);
+  assert.equal((await recordsRequest({ method: "POST", cookies: aliceCookies, body: recordAnswers(), origin: null })).status, 403);
+  assert.equal((await recordsRequest({ cookies: aliceCookies })).body.records.length, 2);
+  console.log("Passed fit record creation, validation, multiple fittings, cache headers, origin checks, and account isolation.");
+
   const oldAliceCookies = new Map(aliceCookies);
   assert.equal((await request("/sign-out", { method: "POST", cookies: aliceCookies, body: {} })).status, 200);
   assert.deepEqual((await request("/get-session", { cookies: oldAliceCookies })).body, null);
   assert.equal((await profileRequest({ cookies: oldAliceCookies })).status, 401);
   assert.equal((await profileRequest({ method: "PUT", cookies: oldAliceCookies, body: answers() })).status, 401);
+  assert.equal((await recordsRequest({ cookies: oldAliceCookies })).status, 401);
+  assert.equal((await recordsRequest({ method: "POST", cookies: oldAliceCookies, body: recordAnswers() })).status, 401);
   const wrong = await request("/sign-in/email", { method: "POST", body: { email: emails[0], password: "Wrong-password-123!" } });
   assert.equal(wrong.status, 401);
   const signedIn = await request("/sign-in/email", { method: "POST", cookies: aliceCookies, body: { email: emails[0], password } });
@@ -196,10 +247,13 @@ try {
   await start();
   assert.equal((await request("/get-session", { cookies: aliceCookies })).body.user.id, alice.body.user.id);
   assert.equal((await profileRequest({ cookies: aliceCookies })).body.profile.width, "WIDE");
+  assert.equal((await recordsRequest({ cookies: aliceCookies })).body.records.length, 2);
   await pool.query('UPDATE "session" SET "expiresAt" = NOW() - INTERVAL \'1 hour\' WHERE id = $1', [bobSession.session.id]);
   assert.deepEqual((await request("/get-session", { cookies: bobCookies })).body, null);
   assert.equal((await profileRequest({ cookies: bobCookies })).status, 401);
   assert.equal((await profileRequest({ method: "PUT", cookies: bobCookies, body: answers() })).status, 401);
+  assert.equal((await recordsRequest({ cookies: bobCookies })).status, 401);
+  assert.equal((await recordsRequest({ method: "POST", cookies: bobCookies, body: recordAnswers() })).status, 401);
   console.log("Passed sign-out, wrong-password rejection, sign-in, expiry, and restart persistence.");
 
   await stop();
@@ -215,6 +269,7 @@ try {
   assert.equal(unavailable.status, 503);
   assert.deepEqual(unavailable.body, { error: "Authentication is unavailable." });
   assert.equal((await profileRequest()).status, 503);
+  assert.equal((await recordsRequest()).status, 503);
   assert.equal((await fetch(`${baseURL}/shoes`)).status, 200);
   console.log("Passed missing-secret handling and public catalogue access.");
 } catch (error) {
@@ -223,6 +278,7 @@ try {
 } finally {
   await stop();
   await pool.query('DELETE FROM "user" WHERE email = ANY($1::text[])', [emails]).catch(() => {});
+  await pool.query('DELETE FROM "Shoe" WHERE id = $1', [fitShoeId]).catch(() => {});
   await pool.end();
   await rm(runtime, { recursive: true, force: true });
 }

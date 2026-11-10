@@ -71,18 +71,26 @@ enum FitPreference {
   UNKNOWN
 }
 
+enum OverallFit {
+  TIGHT
+  COMFORTABLE
+  LOOSE
+  UNKNOWN
+}
+
 model Shoe {
-  id          String     @id @default(cuid())
-  slug        String     @unique
+  id          String      @id @default(cuid())
+  slug        String      @unique
   brand       String
   model       String
   description String?
-  isSample    Boolean    @default(false)
-  downturn    Downturn   @default(UNKNOWN)
-  stiffness   Stiffness  @default(UNKNOWN)
-  closure     Closure    @default(UNKNOWN)
-  width       FootWidth  @default(UNKNOWN)
-  heelVolume  HeelVolume @default(UNKNOWN)
+  isSample    Boolean     @default(false)
+  downturn    Downturn    @default(UNKNOWN)
+  stiffness   Stiffness   @default(UNKNOWN)
+  closure     Closure     @default(UNKNOWN)
+  width       FootWidth   @default(UNKNOWN)
+  heelVolume  HeelVolume  @default(UNKNOWN)
+  fitRecords  FitRecord[]
 }
 
 model User {
@@ -96,8 +104,26 @@ model User {
   sessions        Session[]
   accounts        Account[]
   climbingProfile ClimbingProfile?
+  fitRecords      FitRecord[]
 
   @@map("user")
+}
+
+model FitRecord {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shoeId    String
+  shoe      Shoe       @relation(fields: [shoeId], references: [id], onDelete: Restrict)
+  sizeEu    Float
+  fit       OverallFit @default(UNKNOWN)
+  rating    Int?
+  notes     String     @default("")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([shoeId])
 }
 
 model ClimbingProfile {
