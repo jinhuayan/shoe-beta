@@ -18,6 +18,8 @@ const samples = [
     downturn: "NEUTRAL",
     stiffness: "STIFF",
     closure: "LACE_UP",
+    width: "REGULAR",
+    heelVolume: "REGULAR",
   },
   {
     slug: "sample-everyday",
@@ -28,6 +30,8 @@ const samples = [
     downturn: "MODERATE",
     stiffness: "MEDIUM",
     closure: "HOOK_AND_LOOP",
+    width: "WIDE",
+    heelVolume: "HIGH",
   },
   {
     slug: "sample-precision",
@@ -38,6 +42,8 @@ const samples = [
     downturn: "AGGRESSIVE",
     stiffness: "SOFT",
     closure: "SLIPPER",
+    width: "NARROW",
+    heelVolume: "LOW",
   },
 ] satisfies Prisma.ShoeCreateManyInput[];
 
@@ -53,6 +59,10 @@ try {
         closure: "UNKNOWN",
       },
       data: { downturn: shoe.downturn, stiffness: shoe.stiffness, closure: shoe.closure },
+    });
+    await db.shoe.updateMany({
+      where: { slug: shoe.slug, isSample: true, width: "UNKNOWN", heelVolume: "UNKNOWN" },
+      data: { width: shoe.width, heelVolume: shoe.heelVolume },
     });
   }
   console.log(`Inserted ${result.count} sample climbing shoes.`);

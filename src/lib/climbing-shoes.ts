@@ -1,4 +1,4 @@
-import { Closure, Downturn, Stiffness } from "@/generated/prisma/enums";
+import { Closure, Downturn, FootWidth, HeelVolume, Stiffness } from "@/generated/prisma/enums";
 
 export const downturnLabels: Record<Downturn, string> = {
   NEUTRAL: "Neutral",
@@ -18,6 +18,20 @@ export const closureLabels: Record<Closure, string> = {
   LACE_UP: "Lace-up",
   HOOK_AND_LOOP: "Hook and loop",
   SLIPPER: "Slipper",
+  UNKNOWN: "Unknown",
+};
+
+export const widthLabels: Record<FootWidth, string> = {
+  NARROW: "Narrow",
+  REGULAR: "Regular",
+  WIDE: "Wide",
+  UNKNOWN: "Unknown",
+};
+
+export const heelVolumeLabels: Record<HeelVolume, string> = {
+  LOW: "Low",
+  REGULAR: "Regular",
+  HIGH: "High",
   UNKNOWN: "Unknown",
 };
 

@@ -8,9 +8,9 @@ const profile: QuestionnaireProfile = {
   heelVolume: "UNKNOWN", experience: "UNKNOWN", discipline: "UNKNOWN", fitPreference: "UNKNOWN",
 };
 const shoes: RecommendationShoe[] = [
-  { slug: "precision", brand: "Sample", model: "Precision", isSample: true, downturn: "AGGRESSIVE", stiffness: "SOFT" },
-  { slug: "training", brand: "Sample", model: "Training", isSample: true, downturn: "NEUTRAL", stiffness: "STIFF" },
-  { slug: "everyday", brand: "Sample", model: "Everyday", isSample: true, downturn: "MODERATE", stiffness: "MEDIUM" },
+  { slug: "precision", brand: "Sample", model: "Precision", isSample: true, downturn: "AGGRESSIVE", stiffness: "SOFT", width: "NARROW", heelVolume: "LOW" },
+  { slug: "training", brand: "Sample", model: "Training", isSample: true, downturn: "NEUTRAL", stiffness: "STIFF", width: "REGULAR", heelVolume: "REGULAR" },
+  { slug: "everyday", brand: "Sample", model: "Everyday", isSample: true, downturn: "MODERATE", stiffness: "MEDIUM", width: "WIDE", heelVolume: "HIGH" },
 ];
 
 test("does not rank unsure answers or infer aggression from experience", () => {
@@ -60,9 +60,43 @@ test("keeps ties deterministic, limits results, and leaves input untouched", () 
   assert.deepEqual(candidates, original);
 });
 
-test("does not use unsupported foot data or invent size estimates", () => {
+test("does not use toe shape or measurements, or invent size estimates", () => {
   const base = { ...profile, discipline: "SPORT" } as const;
-  const measured = { ...base, footLengthMm: 250, streetSizeEu: 40, width: "WIDE", toeShape: "SECOND_TOE", heelVolume: "LOW" } as const;
+  const measured = { ...base, footLengthMm: 250, streetSizeEu: 40, toeShape: "SECOND_TOE" } as const;
   assert.deepEqual(recommendShoes(base, shoes), recommendShoes(measured, shoes));
   assert.ok(recommendShoes(measured, shoes).shoes.every((shoe) => !("size" in shoe)));
+});
+
+test("foot width alone can produce different shortlists", () => {
+  assert.deepEqual(recommendShoes({ ...profile, width: "WIDE" }, shoes).shoes.map((shoe) => shoe.slug), ["everyday"]);
+  assert.deepEqual(recommendShoes({ ...profile, width: "NARROW" }, shoes).shoes.map((shoe) => shoe.slug), ["precision"]);
+  assert.deepEqual(recommendShoes({ ...profile, width: "REGULAR" }, shoes).shoes.map((shoe) => shoe.slug), ["training"]);
+});
+
+test("heel volume alone can produce different shortlists", () => {
+  assert.deepEqual(recommendShoes({ ...profile, heelVolume: "LOW" }, shoes).shoes.map((shoe) => shoe.slug), ["precision"]);
+  assert.deepEqual(recommendShoes({ ...profile, heelVolume: "HIGH" }, shoes).shoes.map((shoe) => shoe.slug), ["everyday"]);
+});
+
+test("width mismatches can outweigh a climbing preference", () => {
+  const result = recommendShoes({ ...profile, width: "WIDE", experience: "BEGINNER", discipline: "BOULDERING" }, shoes);
+  assert.deepEqual(result.shoes.map((shoe) => shoe.slug), ["everyday"]);
+  assert.equal(result.shoes[0].score, 1);
+  assert.match(result.shoes[0].reasons[0], /Forefoot width/);
+  assert.ok(result.shoes[0].tradeoffs.some((text) => text.includes("downturned")));
+});
+
+test("heel mismatches remain visible when other attributes match", () => {
+  const result = recommendShoes({ ...profile, width: "WIDE", heelVolume: "LOW" }, shoes);
+  assert.deepEqual(result.shoes.map((shoe) => shoe.slug), ["everyday"]);
+  assert.equal(result.shoes[0].score, 1);
+  assert.match(result.shoes[0].tradeoffs[0], /heel volume differs/);
+});
+
+test("unknown fit data neither earns points nor becomes a mismatch", () => {
+  const unknown = { ...shoes[1], width: "UNKNOWN", heelVolume: "UNKNOWN" } as const;
+  const result = recommendShoes({ ...profile, width: "WIDE", heelVolume: "LOW", experience: "BEGINNER" }, [unknown]);
+  assert.equal(result.shoes[0].score, 2);
+  assert.deepEqual(result.shoes[0].tradeoffs, ["Forefoot width is unknown and was not scored.", "Heel volume is unknown and was not scored."]);
+  assert.deepEqual(recommendShoes({ ...profile, width: "WIDE", heelVolume: "LOW" }, [unknown]), { status: "empty", shoes: [] });
 });
