@@ -8,6 +8,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test src/lib/*.test.ts",
+    "test:auth": "node scripts/test-auth.mjs",
     "lint": "eslint . --max-warnings=0",
     "postinstall": "prisma generate",
     "prebuild": "prisma generate",
@@ -19,8 +20,10 @@
     "db:seed": "prisma db seed"
   },
   "dependencies": {
+    "@better-auth/prisma-adapter": "1.7.19",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
+    "better-auth": "1.7.19",
     "dotenv": "^17.0.0",
     "next": "16.4.5",
     "pg": "^8.16.0",

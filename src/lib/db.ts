@@ -8,10 +8,11 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 export function getDb(): PrismaClient {
-  const connectionString = process.env.DATABASE_URL?.trim();
+  const connectionString = process.env.DATABASE_URL_POOLED?.trim()
+    || process.env.DATABASE_URL?.trim();
 
   if (!connectionString) {
-    throw new Error("Set DATABASE_URL in .env before using the database.");
+    throw new Error("Set DATABASE_URL_POOLED or DATABASE_URL before using the database.");
   }
 
   if (!globalForPrisma.prisma) {
