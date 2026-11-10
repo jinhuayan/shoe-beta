@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { getDb } from "@/lib/db";
-import { closureLabels, downturnLabels, getShoeFilters, stiffnessLabels, type ShoeSearchParams } from "@/lib/climbing-shoes";
+import { closureLabels, downturnLabels, getShoeFilters, heelVolumeLabels, stiffnessLabels, widthLabels, type ShoeSearchParams } from "@/lib/climbing-shoes";
 
 export const metadata = { title: "Climbing shoe details | Shoe Beta" };
 
@@ -48,6 +48,14 @@ export default async function ShoePage({ params, searchParams }: ShoePageProps) 
         <div>
           <dt className="text-sm text-stone-500">Closure</dt>
           <dd className="mt-1 font-medium">{closureLabels[shoe.closure]}</dd>
+        </div>
+        <div>
+          <dt className="text-sm text-stone-500">Forefoot width</dt>
+          <dd className="mt-1 font-medium">{widthLabels[shoe.width]}</dd>
+        </div>
+        <div>
+          <dt className="text-sm text-stone-500">Heel volume</dt>
+          <dd className="mt-1 font-medium">{heelVolumeLabels[shoe.heelVolume]}</dd>
         </div>
       </dl>
     </main>

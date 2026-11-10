@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
+import { heelVolumeLabels, widthLabels } from "@/lib/climbing-shoes";
 import type { QuestionnaireState } from "@/lib/questionnaire";
 import type { RecommendationResponse } from "@/lib/recommendations";
 
@@ -35,8 +36,8 @@ export function RecommendationResults({ values }: { values: QuestionnaireState["
         {state.result && (
           <>
             <h3 tabIndex={-1} ref={(node) => { node?.focus(); }} className="text-xl font-semibold">Your climbing shoe shortlist</h3>
-            <p className="text-sm text-stone-600">This shortlist uses downturn and stiffness preferences. Foot width, toe shape, heel fit, and measurements are not assessed yet. Try shoes on to check fit.</p>
-            {state.result.status === "insufficient" && <p>There is not enough information for these rules. Edit your experience, climbing style, or comfort preference, or browse the catalogue.</p>}
+            <p className="text-sm text-stone-600">This shortlist compares foot width, heel volume, downturn, and stiffness. Toe shape and measurements are not assessed yet. Try shoes on to check fit.</p>
+            {state.result.status === "insufficient" && <p>We need more information to build a shortlist. Add your foot width or heel volume, or browse the catalogue.</p>}
             {state.result.status === "empty" && <p>No shortlist is available from the current catalogue for these preferences. Try adjusting your answers or browse all shoes.</p>}
             {state.result.shoes.some((shoe) => shoe.isSample) && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Entries marked “Sample” are fictional test data, not real products.</p>}
             <ol className="space-y-4">
@@ -49,6 +50,7 @@ export function RecommendationResults({ values }: { values: QuestionnaireState["
                   <h4 className="text-lg font-medium">
                     <Link href={`/shoes/${encodeURIComponent(shoe.slug)}`} className="rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">{shoe.model}</Link>
                   </h4>
+                  <p className="text-sm text-stone-500">Forefoot: {widthLabels[shoe.width]} · Heel volume: {heelVolumeLabels[shoe.heelVolume]}</p>
                   <div className="space-y-1 text-sm">
                     <p className="font-medium">Why it appears</p>
                     <ul className="list-disc space-y-1 pl-5">{shoe.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>

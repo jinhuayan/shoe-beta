@@ -28,14 +28,30 @@ enum Closure {
   UNKNOWN
 }
 
+enum FootWidth {
+  NARROW
+  REGULAR
+  WIDE
+  UNKNOWN
+}
+
+enum HeelVolume {
+  LOW
+  REGULAR
+  HIGH
+  UNKNOWN
+}
+
 model Shoe {
-  id          String    @id @default(cuid())
-  slug        String    @unique
+  id          String     @id @default(cuid())
+  slug        String     @unique
   brand       String
   model       String
   description String?
-  isSample    Boolean   @default(false)
-  downturn    Downturn  @default(UNKNOWN)
-  stiffness   Stiffness @default(UNKNOWN)
-  closure     Closure   @default(UNKNOWN)
+  isSample    Boolean    @default(false)
+  downturn    Downturn   @default(UNKNOWN)
+  stiffness   Stiffness  @default(UNKNOWN)
+  closure     Closure    @default(UNKNOWN)
+  width       FootWidth  @default(UNKNOWN)
+  heelVolume  HeelVolume @default(UNKNOWN)
 }
