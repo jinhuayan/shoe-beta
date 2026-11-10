@@ -13,6 +13,8 @@ npm run dev
 
 Open the Local URL printed in the terminal, normally http://localhost:3000. The home route redirects to `/shoes`.
 
+Click a shoe name to open its details at `/shoes/[slug]`. Unknown shoe URLs show a not-found page with a link back to the catalogue.
+
 ## Check
 
 ```bash

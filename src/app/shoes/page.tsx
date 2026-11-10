@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { connection } from "next/server";
 import { getDb } from "@/lib/db";
 
@@ -35,7 +36,14 @@ export default async function ShoesPage() {
                 <p className="text-sm text-stone-500">{shoe.brand}</p>
                 {shoe.isSample && <span className="rounded bg-amber-100 px-2 py-1 text-xs text-amber-900">Sample</span>}
               </div>
-              <h2 className="text-xl font-medium">{shoe.model}</h2>
+              <h2 className="text-xl font-medium">
+                <Link
+                  href={`/shoes/${encodeURIComponent(shoe.slug)}`}
+                  className="rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2"
+                >
+                  {shoe.model}
+                </Link>
+              </h2>
               {shoe.description && <p className="text-sm leading-6 text-stone-600">{shoe.description}</p>}
             </li>
           ))}
