@@ -114,6 +114,22 @@ Uploads that fail storage or metadata creation attempt object cleanup. Photo del
    Replace `nyc3` with the chosen region. Use the regional origin endpoint, without the bucket name or CDN hostname. The SDK uses `us-east-1` for signing and the endpoint selects the actual datacenter, following [DigitalOcean's SDK example](https://docs.digitalocean.com/products/spaces/reference/aws-sdks/). No browser-to-bucket CORS rule is needed because the app server transfers files.
 5. Apply `DOTENV_CONFIG_PATH=.env.local npm run db:deploy`, restart local development, and redeploy Vercel after setting its variables. Test the API with a disposable signed-in account: upload, view, download, remove, and reject another account. Never send keys in chat or screenshots.
 
+## Shop search
+
+`/shops` is available to guests. Enter a city or neighbourhood to request up to ten Google Places Text Search (New) matches for climbing shoe retailers. Results show addresses, Google Maps links, temporary-closure flags, and provider attributions. They are search candidates, not verified climbing shoe stock or a distance-sorted list. Call ahead before visiting. The header and shoe details link to the search page.
+
+`POST /api/shops` accepts `{ "location": "Toronto, ON" }`. It normalizes 2–100 characters, validates Origin against the request Host, and sends a server-side request with a restricted field mask and an eight-second timeout. It returns 400 for invalid input, 403 for a mismatched/missing Origin, 429 for quota/busy responses, 504 for timeouts, and 503 for missing configuration or provider failures. Upstream errors and keys are not returned. Searches and results are not saved to the database, browser storage, or a server cache. A warm server instance allows 20 searches per minute across all users; this is a basic throttle, not a deployment-wide spending limit. Google Cloud quotas must also be configured.
+
+### Configure Google Places
+
+1. In Google Cloud, create/select a project and review billing before enabling **Places API (New)**. [Setup instructions](https://developers.google.com/maps/documentation/places/web-service/get-api-key).
+2. Create a server API key restricted to **Places API (New)**. Configure API quotas in Cloud Console and billing alerts. Alerts do not cap spending; choose quotas suitable for the team's budget. Browser referrer restrictions are not suitable for this server-side key; use supported server restrictions for your hosting setup.
+3. Set `GOOGLE_PLACES_API_KEY` in `.env.local` and Vercel's environment variables, then restart/redeploy. Keep it out of Git and do not add a `NEXT_PUBLIC_` prefix. Preview should use its own restricted key/quota.
+4. The requested display-name/address/Maps-link fields use the Text Search Pro field tier; review [field billing](https://developers.google.com/maps/documentation/places/web-service/text-search) before making live requests. No live Google requests were made during local validation.
+5. Review the public `/privacy` and `/terms` project notices with the team before public deployment. The results use the unmodified official Google Maps logo, plus provider credits, following [attribution guidance](https://developers.google.com/maps/documentation/places/web-service/policies). The official SVG comes from Google's attribution asset bundle.
+
+Run `npm run test:shops` after a build to exercise a local HTTP provider with dummy keys, including malformed responses, unsafe links, empty results, failures, timeouts, and quotas. The test-only `PLACES_TEST_ENDPOINT` accepts only HTTP loopback URLs and is disabled on Vercel; it is not a deployment setting. Local fixture results are explicitly marked as demo data. Real Google connectivity and result relevance need a smoke test after the key is configured.
+
 ## CI and deployment
 
 [GitHub Actions](https://docs.github.com/en/actions/tutorials/build-and-test-code/nodejs) runs `.github/workflows/ci.yml` for pull requests targeting `main` (including new commits on an open PR) and pushes to `main`. It installs dependencies with `npm ci`, reads Node.js 24 from `.nvmrc`, then runs lint, typecheck, tests, Prisma validation, the production build, and auth API tests against a temporary PostgreSQL service. It needs no production database or secrets. A feature-branch push without a PR does not trigger this workflow.

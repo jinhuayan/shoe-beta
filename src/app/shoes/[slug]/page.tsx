@@ -59,6 +59,7 @@ export default async function ShoePage({ params, searchParams }: ShoePageProps) 
         </div>
       </dl>
       <Link href={{ pathname: "/fit-records", query: { shoe: shoe.slug } }} className="inline-block rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">Record a fitting</Link>
+      <p><Link href="/shops" className="rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">Find shops to ask about trying climbing shoes</Link></p>
     </main>
   );
 }
