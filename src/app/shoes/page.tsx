@@ -71,6 +71,7 @@ export default async function ShoesPage({ searchParams }: { searchParams: Promis
                 {[downturnLabels[shoe.downturn], stiffnessLabels[shoe.stiffness], closureLabels[shoe.closure]].join(" · ")}
               </p>
               {shoe.description && <p className="text-sm leading-6 text-stone-600">{shoe.description}</p>}
+              <Link href={{ pathname: "/compare", query: { shoe: shoe.slug } }} aria-label={`Compare ${shoe.brand} ${shoe.model}`} className="inline-block text-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">Compare this shoe</Link>
             </li>
           ))}
         </ul>

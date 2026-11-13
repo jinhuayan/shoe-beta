@@ -33,6 +33,7 @@ export function SiteHeader() {
       <nav aria-label="Main" className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-4 px-6 py-4 text-sm sm:px-10">
         <div className="flex flex-wrap items-center gap-4">
           <Link href="/shoes" className={`${linkClass} font-semibold`}>Shoe Beta</Link>
+          <Link href="/compare" className={linkClass}>Compare shoes</Link>
           <Link href="/questionnaire" className={linkClass}>Questionnaire</Link>
           <Link href="/fit-records" className={linkClass}>Fit records</Link>
           <Link href="/shops" className={linkClass}>Find shops</Link>
