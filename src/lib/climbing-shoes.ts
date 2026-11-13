@@ -1,3 +1,4 @@
+import type { Prisma } from "@/generated/prisma/client";
 import { Closure, Downturn, FootWidth, HeelVolume, Stiffness } from "@/generated/prisma/enums";
 
 export const downturnLabels: Record<Downturn, string> = {
@@ -36,6 +37,8 @@ export const heelVolumeLabels: Record<HeelVolume, string> = {
 };
 
 export type ShoeSearchParams = {
+  q?: string | string[];
+  brand?: string | string[];
   downturn?: string | string[];
   stiffness?: string | string[];
   closure?: string | string[];
@@ -46,9 +49,33 @@ export function getShoeFilters(search: ShoeSearchParams) {
   const stiffness = Object.values(Stiffness).find((value) => value === search.stiffness);
   const closure = Object.values(Closure).find((value) => value === search.closure);
 
+  const text = (value: string | string[] | undefined) =>
+    typeof value === "string" && value.trim().length <= 100 ? value.trim() : "";
+  const q = text(search.q);
+  const brand = text(search.brand);
+
   return {
+    ...(q ? { q } : {}),
+    ...(brand ? { brand } : {}),
     ...(downturn ? { downturn } : {}),
     ...(stiffness ? { stiffness } : {}),
     ...(closure ? { closure } : {}),
+  };
+}
+
+export function getCatalogueWhere(filters: ReturnType<typeof getShoeFilters>): Prisma.ShoeWhereInput {
+  const { q, brand, ...attributes } = filters;
+  return {
+    isSample: false,
+    ...attributes,
+    ...(brand ? { brand: { equals: brand, mode: "insensitive" } } : {}),
+    ...(q ? {
+      AND: q.split(/\s+/).map((word) => ({
+        OR: [
+          { brand: { contains: word, mode: "insensitive" } },
+          { model: { contains: word, mode: "insensitive" } },
+        ],
+      })),
+    } : {}),
   };
 }

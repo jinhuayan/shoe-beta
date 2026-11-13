@@ -1,0 +1,2 @@
+ALTER TABLE "Shoe" ADD COLUMN "sourceUrl" TEXT,
+ADD COLUMN "sourceCheckedAt" TIMESTAMP(3);

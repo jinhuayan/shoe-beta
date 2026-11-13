@@ -79,18 +79,20 @@ enum OverallFit {
 }
 
 model Shoe {
-  id          String      @id @default(cuid())
-  slug        String      @unique
-  brand       String
-  model       String
-  description String?
-  isSample    Boolean     @default(false)
-  downturn    Downturn    @default(UNKNOWN)
-  stiffness   Stiffness   @default(UNKNOWN)
-  closure     Closure     @default(UNKNOWN)
-  width       FootWidth   @default(UNKNOWN)
-  heelVolume  HeelVolume  @default(UNKNOWN)
-  fitRecords  FitRecord[]
+  id              String      @id @default(cuid())
+  slug            String      @unique
+  brand           String
+  model           String
+  description     String?
+  sourceUrl       String?
+  sourceCheckedAt DateTime?
+  isSample        Boolean     @default(false)
+  downturn        Downturn    @default(UNKNOWN)
+  stiffness       Stiffness   @default(UNKNOWN)
+  closure         Closure     @default(UNKNOWN)
+  width           FootWidth   @default(UNKNOWN)
+  heelVolume      HeelVolume  @default(UNKNOWN)
+  fitRecords      FitRecord[]
 }
 
 model User {

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { getDb } from "@/lib/db";
 import { ShoeFilter } from "@/components/shoe-filter";
-import { closureLabels, downturnLabels, getShoeFilters, stiffnessLabels, type ShoeSearchParams } from "@/lib/climbing-shoes";
+import { closureLabels, downturnLabels, getShoeFilters, getCatalogueWhere, stiffnessLabels, type ShoeSearchParams } from "@/lib/climbing-shoes";
 
 export const metadata = { title: "Climbing shoe catalogue | Shoe Beta" };
 
@@ -10,26 +10,31 @@ export default async function ShoesPage({ searchParams }: { searchParams: Promis
   await connection();
   const filters = getShoeFilters(await searchParams);
   const hasFilters = Object.keys(filters).length > 0;
-  const shoes = await getDb().shoe.findMany({
-    where: filters,
-    orderBy: [{ brand: "asc" }, { model: "asc" }],
-  });
+  const [shoes, brands] = await Promise.all([
+    getDb().shoe.findMany({ where: getCatalogueWhere(filters), orderBy: [{ brand: "asc" }, { model: "asc" }] }),
+    getDb().shoe.findMany({ where: { isSample: false }, distinct: ["brand"], select: { brand: true }, orderBy: { brand: "asc" } }),
+  ]);
 
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6 sm:p-10">
       <header className="space-y-2">
         <p className="text-sm font-medium text-stone-500">Shoe Beta</p>
         <h1 className="text-3xl font-semibold tracking-tight">Climbing shoe catalogue</h1>
-        <p className="text-stone-600">Browse climbing shoes by downturn, stiffness, and closure.</p>
+        <p className="text-stone-600">Search by brand or model, then narrow down the shoe attributes.</p>
         <Link href="/questionnaire" className="inline-block rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">Review your feet and climbing preferences</Link>
       </header>
 
       <form
-        key={`${filters.downturn ?? ""}:${filters.stiffness ?? ""}:${filters.closure ?? ""}`}
+        key={JSON.stringify(filters)}
         action="/shoes"
         method="get"
         className="grid gap-4 rounded-lg border border-stone-200 p-4 sm:grid-cols-3"
       >
+        <label className="space-y-1 sm:col-span-2">
+          <span className="block text-sm font-medium">Brand or model</span>
+          <input name="q" type="search" maxLength={100} defaultValue={filters.q} placeholder="e.g. La Sportiva Solution" className="w-full rounded-lg border border-stone-300 px-3 py-2" />
+        </label>
+        <ShoeFilter name="brand" label="Brand" value={filters.brand} options={Object.fromEntries(brands.map(({ brand }) => [brand, brand]))} />
         <ShoeFilter name="downturn" label="Downturn" value={filters.downturn} options={downturnLabels} />
         <ShoeFilter name="stiffness" label="Stiffness" value={filters.stiffness} options={stiffnessLabels} />
         <ShoeFilter name="closure" label="Closure" value={filters.closure} options={closureLabels} />
@@ -41,11 +46,7 @@ export default async function ShoesPage({ searchParams }: { searchParams: Promis
         </div>
       </form>
 
-      {shoes.some((shoe) => shoe.isSample) && (
-        <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-          Entries marked “Sample” are fictional test data, not real products.
-        </p>
-      )}
+      <p className="text-sm text-stone-600">{shoes.length} {shoes.length === 1 ? "shoe" : "shoes"} found. Unknown attributes have not been confirmed from manufacturer information.</p>
 
       {shoes.length === 0 ? (
         <p className="rounded-lg border border-stone-200 p-6 text-stone-600">
@@ -57,7 +58,6 @@ export default async function ShoesPage({ searchParams }: { searchParams: Promis
             <li key={shoe.id} className="space-y-3 rounded-lg border border-stone-200 p-5">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm text-stone-500">{shoe.brand}</p>
-                {shoe.isSample && <span className="rounded bg-amber-100 px-2 py-1 text-xs text-amber-900">Sample</span>}
               </div>
               <h2 className="text-xl font-medium">
                 <Link

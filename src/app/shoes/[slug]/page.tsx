@@ -58,6 +58,14 @@ export default async function ShoePage({ params, searchParams }: ShoePageProps) 
           <dd className="mt-1 font-medium">{heelVolumeLabels[shoe.heelVolume]}</dd>
         </div>
       </dl>
+      {shoe.sourceUrl?.startsWith("https://") && (
+        <section className="space-y-2 rounded-lg bg-stone-50 p-4 text-sm text-stone-600">
+          <h2 className="font-medium text-stone-900">Manufacturer information</h2>
+          <p><a href={shoe.sourceUrl} target="_blank" rel="noreferrer" className="underline underline-offset-4">View {shoe.brand} product page (opens a new tab)</a></p>
+          {shoe.sourceCheckedAt && <p>Checked <time dateTime={shoe.sourceCheckedAt.toISOString().slice(0, 10)}>{shoe.sourceCheckedAt.toLocaleDateString("en-CA", { timeZone: "UTC", year: "numeric", month: "short", day: "numeric" })}</time>.</p>}
+          <p>Unknown means the attribute has not been confirmed. Overall shoe volume does not establish forefoot width or heel volume. These details do not predict your shoe size.</p>
+        </section>
+      )}
       <Link href={{ pathname: "/fit-records", query: { shoe: shoe.slug } }} className="inline-block rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">Record a fitting</Link>
       <p><Link href="/shops" className="rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">Find shops to ask about trying climbing shoes</Link></p>
     </main>
