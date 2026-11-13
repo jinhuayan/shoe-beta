@@ -2,6 +2,16 @@
 
 A climbing-shoe project built with Next.js, TypeScript, Tailwind CSS, and PostgreSQL. The first feature is a read-only shoe catalogue.
 
+## Private saved shoes
+
+Signed-in users can save a shoe from its details, save the whole recommendation shortlist, or add a shoe on `/saved-shoes`. Saving the same shoe again is harmless. Saved shoes persist across sign-ins and reloads; removing one is reversible by saving it again. Removal does not delete the shoe or any fit records. Select two or three public shoes to open a shareable comparison. Saved shoes are private; comparison links include public shoe slugs only.
+
+Apply `DOTENV_CONFIG_PATH=.env.local npm run db:deploy` before deploying this version. The `SavedShoe` migration adds an account/shoe pair with a unique key. Account deletion removes its saved list; a referenced shoe cannot be deleted. No new environment variables or seed changes are needed.
+
+`GET /api/saved-shoes` returns the current account's saved shoes and public catalogue choices. `POST` accepts `{ "slugs": ["scarpa-drago"] }` with one to three slugs, inserts missing pairs only, and reports `added`. A batch containing unavailable or sample shoes is rejected as a whole. `DELETE` accepts `{ "shoeId": "..." }`. Sessions determine ownership; request-supplied user IDs are ignored. Writes validate Origin and all responses are private/no-store. Missing and other-account entries return the same 404 response. Saved entries later marked as samples remain removable but cannot be selected for public comparison.
+
+The existing local `test:auth` suite covers account isolation, validation, concurrent saves, idempotence, expiry, restart persistence, and removal with dummy credentials. Loading and write failures retain the list and offer retry/reload.
+
 ## Shoe comparison
 
 Open `/compare` to choose up to three different public catalogue shoes. The table shows downturn, stiffness, closure, forefoot width, heel volume, manufacturer sources/review dates, and links to record a fitting. Catalogue cards and shoe details can preselect a shoe; questionnaire results link to a comparison of the whole shortlist.

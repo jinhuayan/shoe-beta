@@ -35,6 +35,7 @@ export function SiteHeader() {
           <Link href="/shoes" className={`${linkClass} font-semibold`}>Shoe Beta</Link>
           <Link href="/compare" className={linkClass}>Compare shoes</Link>
           <Link href="/questionnaire" className={linkClass}>Questionnaire</Link>
+          <Link href="/saved-shoes" className={linkClass}>Saved shoes</Link>
           <Link href="/fit-records" className={linkClass}>Fit records</Link>
           <Link href="/shops" className={linkClass}>Find shops</Link>
         </div>

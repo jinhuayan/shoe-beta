@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { SaveShoesButton } from "@/components/save-shoes-button";
 import { useActionState } from "react";
 import { heelVolumeLabels, widthLabels } from "@/lib/climbing-shoes";
 import type { QuestionnaireState } from "@/lib/questionnaire";
@@ -42,6 +43,7 @@ export function RecommendationResults({ values }: { values: QuestionnaireState["
             {state.result.status === "empty" && <p>No shortlist is available from the current catalogue for these preferences. Try adjusting your answers or browse all shoes.</p>}
             {state.result.shoes.some((shoe) => shoe.isSample) && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Entries marked “Sample” are fictional test data, not real products.</p>}
             {state.result.shoes.length > 0 && <Link href={comparisonHref(state.result.shoes.map((shoe) => shoe.slug))} className="inline-block underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">Compare this shortlist</Link>}
+            {state.result.shoes.length > 0 && <SaveShoesButton key={state.result.shoes.map((shoe) => shoe.slug).join(":")} slugs={state.result.shoes.map((shoe) => shoe.slug)} />}
             <ol className="space-y-4">
               {state.result.shoes.map((shoe) => (
                 <li key={shoe.slug} className="space-y-3 rounded-lg border border-stone-200 p-4">
