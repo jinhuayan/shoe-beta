@@ -91,7 +91,7 @@ Apply the new `FitRecord` migration with `DOTENV_CONFIG_PATH=.env.local npm run 
 
 ## Private photo API
 
-The photo backend supports one JPEG or PNG per fit record, up to 2 MiB. Photo buttons will be added separately. The server checks the session, record ownership, declared MIME type, and file signatures. Signature checks do not fully decode images. Objects are private; object keys and original filenames are not returned to clients.
+The photo backend supports one JPEG or PNG per fit record, up to 2 MiB. Each saved record has photo upload controls. After upload, use **View photo**, **Download photo**, or **Remove photo**. Removal has a confirmation and cancel step; remove the photo before deleting its record. File errors keep the chosen file available for retry. The server checks the session, record ownership, declared MIME type, and file signatures. Signature checks do not fully decode images. Objects are private; object keys and original filenames are not returned to clients.
 
 `/api/fit-records/[id]/photo` supports `POST` with one multipart `photo` field, `GET` for inline viewing, `GET ?download=1` for download, and `DELETE` to remove the photo. Writes require the configured application Origin. Another user's record returns 404. A second upload returns 409. Remove the photo before deleting its fit record; a restrictive foreign key also protects concurrent uploads from record deletion.
 

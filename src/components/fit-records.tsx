@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { FitPhotoControls } from "@/components/fit-photo-controls";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { authClient } from "@/lib/auth-client";
 import { fitLabels, type FitRecordErrors, type FitRecordList, type SavedFitRecord } from "@/lib/fit-records";
@@ -167,6 +168,7 @@ function RecordList({ initialShoeSlug, onSessionExpired }: { initialShoeSlug?: s
                 </dl>
                 {record.notes && <p className="whitespace-pre-wrap break-words text-stone-600">{record.notes}</p>}
                 <p className="text-sm text-stone-500">Added <time dateTime={record.createdAt}>{new Date(record.createdAt).toLocaleDateString("en-CA")}</time></p>
+                <FitPhotoControls recordId={record.id} hasPhoto={!!record.photo} disabled={saving} onSessionExpired={onSessionExpired} onChange={(hasPhoto) => setData((previous) => previous ? { ...previous, records: previous.records.map((item) => item.id === record.id ? { ...item, photo: hasPhoto ? { recordId: record.id } : null } : item) } : previous)} />
                 <div className="flex flex-wrap items-center gap-4">
                   <button type="button" disabled={saving} onClick={() => { setEditing(record); setDeleteId(null); setErrors({}); setError(""); setNotice(""); }} className={linkClass}>Edit</button>
                   {deleteId === record.id ? (
