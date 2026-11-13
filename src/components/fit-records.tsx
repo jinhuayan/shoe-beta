@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { FitJournal } from "@/components/fit-journal";
 import { FitPhotoControls } from "@/components/fit-photo-controls";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { authClient } from "@/lib/auth-client";
-import { fitLabels, type FitRecordErrors, type FitRecordList, type SavedFitRecord } from "@/lib/fit-records";
+import { fitAreaLabels, fitLabels, type FitArea, type FitRecordErrors, type FitRecordList, type SavedFitRecord } from "@/lib/fit-records";
 
 const controlClass = "w-full rounded-lg border border-stone-300 bg-white p-2 focus-visible:outline-2 focus-visible:outline-offset-2";
 const linkClass = "rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2";
@@ -132,6 +133,16 @@ function RecordList({ initialShoeSlug, onSessionExpired }: { initialShoeSlug?: s
               </select>
               {fieldError("fit")}
             </div>
+            <fieldset className="grid gap-3 rounded-lg border border-stone-200 p-3 sm:col-span-2 sm:grid-cols-3">
+              <legend className="px-1 text-sm font-medium">Fit by area (optional)</legend>
+              {Object.entries(fitAreaLabels).map(([name, label]) => <div key={name} className="min-w-0 space-y-2">
+                <label htmlFor={name} className="block text-sm font-medium">{label}</label>
+                <select id={name} name={name} defaultValue={editing?.[name as FitArea] ?? "UNKNOWN"} {...fieldProps(name as FitArea)}>
+                  {Object.entries(fitLabels).map(([value, text]) => <option key={value} value={value}>{text}</option>)}
+                </select>
+                {fieldError(name as FitArea)}
+              </div>)}
+            </fieldset>
             <div className="space-y-2">
               <label htmlFor="rating" className="block text-sm font-medium">Rating (optional)</label>
               <select id="rating" name="rating" defaultValue={editing?.rating ?? ""} {...fieldProps("rating")}>
@@ -153,37 +164,33 @@ function RecordList({ initialShoeSlug, onSessionExpired }: { initialShoeSlug?: s
           </fieldset>
         </form>
       )}
-      <section className="space-y-4" aria-labelledby="records-heading">
-        <h2 id="records-heading" className="text-xl font-semibold">Saved records</h2>
-        {data.records.length === 0 ? <p className="text-stone-600">No fit records yet.</p> : (
-          <ul className="space-y-4">
-            {data.records.map((record) => (
-              <li key={record.id} className="space-y-3 rounded-lg border border-stone-200 p-5">
-                <h3 className="text-lg font-medium"><Link href={`/shoes/${encodeURIComponent(record.shoe.slug)}`} className={linkClass}>{record.shoe.brand} {record.shoe.model}</Link></h3>
-                {record.shoe.isSample && <p className="text-sm text-amber-900">Fictional sample climbing shoe.</p>}
-                <dl className="grid gap-3 sm:grid-cols-3">
-                  <div><dt className="text-sm text-stone-500">Size worn</dt><dd>EU {record.sizeEu}</dd></div>
-                  <div><dt className="text-sm text-stone-500">Overall fit</dt><dd>{fitLabels[record.fit]}</dd></div>
-                  <div><dt className="text-sm text-stone-500">Rating</dt><dd>{record.rating === null ? "Not rated" : `${record.rating} / 5`}</dd></div>
-                </dl>
-                {record.notes && <p className="whitespace-pre-wrap break-words text-stone-600">{record.notes}</p>}
-                <p className="text-sm text-stone-500">Added <time dateTime={record.createdAt}>{new Date(record.createdAt).toLocaleDateString("en-CA")}</time></p>
-                <FitPhotoControls recordId={record.id} hasPhoto={!!record.photo} disabled={saving} onSessionExpired={onSessionExpired} onChange={(hasPhoto) => setData((previous) => previous ? { ...previous, records: previous.records.map((item) => item.id === record.id ? { ...item, photo: hasPhoto ? { recordId: record.id } : null } : item) } : previous)} />
-                <div className="flex flex-wrap items-center gap-4">
-                  <button type="button" disabled={saving} onClick={() => { setEditing(record); setDeleteId(null); setErrors({}); setError(""); setNotice(""); }} className={linkClass}>Edit</button>
-                  {deleteId === record.id ? (
-                    <>
-                      <p className="text-sm text-stone-600">Delete this fit record? This cannot be undone.</p>
-                      <button type="button" disabled={saving} onClick={() => void remove(record.id)} className={`${linkClass} text-red-700`}>Confirm delete</button>
-                      <button type="button" disabled={saving} onClick={() => setDeleteId(null)} className={linkClass}>Cancel deletion</button>
-                    </>
-                  ) : <button type="button" disabled={saving} onClick={() => setDeleteId(record.id)} className={`${linkClass} text-red-700`}>Delete</button>}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <FitJournal records={data.records} disabled={saving} renderRecord={(record) => (
+        <article className="space-y-3">
+          <h3 className="text-lg font-medium"><Link href={`/shoes/${encodeURIComponent(record.shoe.slug)}`} className={linkClass}>{record.shoe.brand} {record.shoe.model}</Link></h3>
+          {record.shoe.isSample && <p className="text-sm text-amber-900">Fictional sample climbing shoe.</p>}
+          <dl className="grid gap-3 sm:grid-cols-3">
+            <div><dt className="text-sm text-stone-500">Size worn</dt><dd>EU {record.sizeEu}</dd></div>
+            <div><dt className="text-sm text-stone-500">Overall fit</dt><dd>{fitLabels[record.fit]}</dd></div>
+            <div><dt className="text-sm text-stone-500">Rating</dt><dd>{record.rating === null ? "Not rated" : `${record.rating} / 5`}</dd></div>
+          </dl>
+          <dl className="grid gap-3 sm:grid-cols-3">
+            {Object.entries(fitAreaLabels).map(([name, label]) => <div key={name}><dt className="text-sm text-stone-500">{label}</dt><dd>{fitLabels[record[name as FitArea]]}</dd></div>)}
+          </dl>
+          {record.notes && <p className="whitespace-pre-wrap break-words text-stone-600">{record.notes}</p>}
+          <p className="text-sm text-stone-500">Added <time dateTime={record.createdAt}>{new Date(record.createdAt).toLocaleDateString("en-CA")}</time></p>
+          <FitPhotoControls recordId={record.id} hasPhoto={!!record.photo} disabled={saving} onSessionExpired={onSessionExpired} onChange={(hasPhoto) => setData((previous) => previous ? { ...previous, records: previous.records.map((item) => item.id === record.id ? { ...item, photo: hasPhoto ? { recordId: record.id } : null } : item) } : previous)} />
+          <div className="flex flex-wrap items-center gap-4">
+            <button type="button" disabled={saving} onClick={() => { setEditing(record); setDeleteId(null); setErrors({}); setError(""); setNotice(""); }} className={linkClass}>Edit</button>
+            {deleteId === record.id ? (
+              <>
+                <p className="text-sm text-stone-600">Delete this fit record? This cannot be undone.</p>
+                <button type="button" disabled={saving} onClick={() => void remove(record.id)} className={`${linkClass} text-red-700`}>Confirm delete</button>
+                <button type="button" disabled={saving} onClick={() => setDeleteId(null)} className={linkClass}>Cancel deletion</button>
+              </>
+            ) : <button type="button" disabled={saving} onClick={() => setDeleteId(record.id)} className={`${linkClass} text-red-700`}>Delete</button>}
+          </div>
+        </article>
+      )} />
     </div>
   );
 
