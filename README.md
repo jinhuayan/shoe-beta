@@ -2,6 +2,28 @@
 
 A climbing-shoe project built with Next.js, TypeScript, Tailwind CSS, and PostgreSQL. The first feature is a read-only shoe catalogue.
 
+## Private fitting journal
+
+Fit records now include optional toe, forefoot, and heel observations, each using Unsure / Too tight / Comfortable / Too loose. Overall fit remains a separate answer. Existing records default these areas to Unsure; nothing is inferred from notes or overall fit.
+
+The saved-record journal provides a summary of all fittings, distinct shoe models and comfortable-overall observations. Search across brand, model and notes, combine shoe/overall-fit/photo filters, and sort by date, rating or worn EU size. Unrated entries sort last for rating. Filters and selections stay in component state, never in shared URLs or browser storage.
+
+Select two or three records for a private side-by-side comparison of sizes, fit areas, ratings and notes. Different sizes of the same shoe can be compared. Selections survive filtering, reflect edits and photo changes, and exclude deleted records. Clear them explicitly or reload/switch accounts to reset. This is a review of your observations, not an automatic size recommendation or a public comparison link.
+
+Before deploying, run `DOTENV_CONFIG_PATH=.env.local npm run db:deploy`. The additive migration introduces three `OverallFit` columns with UNKNOWN defaults. No seed changes or new environment variables are required. POST/PATCH accept optional `toeFit`, `forefootFit`, and `heelFit`; omitted fields use database defaults on create and preserve existing values on update. Explicit UNKNOWN clears an observation. Sessions, ownership checks and private/no-store responses continue to protect the full dataset; filtering is client-side after the existing owner-scoped fetch.
+
+Unit tests cover validation, filtering, ordering, summary semantics and comparison synchronization. Local database tests cover persisted area observations, invalid writes, cross-account rejection and older clients that omit the new fields.
+
+## Model-specific size references
+
+Recommendations now include a separate `sizeReference` for each shoe. It never changes the suitability score or ordering. Five exact SCARPA variants have numeric guidance: Drago LV, Instinct VS Men's, Instinct VSR, Helix Men's, and Vapor V. Drago and Origin VS have source notes only because the numeric baseline/unit is ambiguous. Other models report unavailable rather than borrowing a brand-wide adjustment.
+
+Shoe details include a guest calculator, and comparison tables include the model notes. The calculator keeps answers in page state; it does not save or alter a profile, prefill a fitting, or place measurements in a shared URL. Recommendation responses are `no-store`.
+
+The calculation requires a valid EU street size and a preference covered by the exact guide. Only sizes listed in that product's technical specification are returned. Whole-size sections are respected without rounding; intervals outside the listed bounds are rejected rather than clamped. Foot length, width, heel volume, toe shape, experience, and suitability scores do not establish a size. These are manufacturer-based starting points to try, with no fit or inventory guarantee.
+
+See [sizing sources and decisions](docs/sizing.md). No migration, seed, credentials, or live API is required. Guidance is versioned in `src/lib/shoe-sizing.ts`; its review date is fixed until the source is checked again.
+
 ## Private saved shoes
 
 Signed-in users can save a shoe from its details, save the whole recommendation shortlist, or add a shoe on `/saved-shoes`. Saving the same shoe again is harmless. Saved shoes persist across sign-ins and reloads; removing one is reversible by saving it again. Removal does not delete the shoe or any fit records. Select two or three public shoes to open a shareable comparison. Saved shoes are private; comparison links include public shoe slugs only.
@@ -58,7 +80,7 @@ Unknown attributes contribute zero points and appear as tradeoffs. Unsure foot-w
 
 The general starting points come from [SCARPA's shoe guide](https://www.scarpa.co.uk/blogs/blog/how-to-choose-a-climbing-shoe) and [construction guidance](https://scarpa.com/collections/climbing-shoes). The trad-support rule is our inference from long-route guidance. Weights and cutoffs are project choices, not manufacturer ratings or measured fit probabilities. Terrain can change which construction is suitable; reasons and tradeoffs describe these limited rules, not a guarantee of comfort or performance.
 
-Width and heel-volume matching compare qualitative catalogue labels with questionnaire answers. The current real-shoe seed leaves both attributes unknown, so they do not earn matching points. Fictional samples are used only as test fixtures and are excluded from public recommendations. Toe shape and measurements are not scored. Size estimation remains unavailable; neither street size nor foot length is converted into a climbing shoe size.
+Width and heel-volume matching compare qualitative catalogue labels with questionnaire answers. The current real-shoe seed leaves both attributes unknown, so they do not earn matching points. Fictional samples are used only as test fixtures and are excluded from public recommendations. Toe shape and measurements are not scored. Size references use verified model-specific EU rules for covered preferences; foot length is not converted. See the sizing reference section.
 
 ## Check
 

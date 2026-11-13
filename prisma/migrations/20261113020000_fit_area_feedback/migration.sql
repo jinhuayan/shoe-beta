@@ -1,0 +1,4 @@
+ALTER TABLE "FitRecord"
+ADD COLUMN "toeFit" "OverallFit" NOT NULL DEFAULT 'UNKNOWN',
+ADD COLUMN "forefootFit" "OverallFit" NOT NULL DEFAULT 'UNKNOWN',
+ADD COLUMN "heelFit" "OverallFit" NOT NULL DEFAULT 'UNKNOWN';

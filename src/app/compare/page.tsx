@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getSizingGuide } from "@/lib/shoe-sizing";
 import { connection } from "next/server";
 import { getDb } from "@/lib/db";
 import { comparisonAttributes, comparisonHref, comparisonLimit, differingAttributes, getComparisonSelection, type ComparisonSearch } from "@/lib/shoe-comparison";
@@ -70,6 +71,10 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
                     {shoe.sourceUrl?.startsWith("https://") ? <a href={shoe.sourceUrl} target="_blank" rel="noreferrer" className={linkClass}>Product page (new tab)</a> : <p>Source unavailable</p>}
                     {shoe.sourceCheckedAt && <p className="text-stone-600">Checked <time dateTime={shoe.sourceCheckedAt.toISOString().slice(0, 10)}>{shoe.sourceCheckedAt.toISOString().slice(0, 10)}</time></p>}
                   </td>)}
+                </tr>
+                <tr className="border-t border-stone-200 align-top">
+                  <th scope="row" className="p-4 font-medium">Sizing guidance</th>
+                  {shoes.map((shoe) => <td key={shoe.slug} className="space-y-2 p-4"><p>{getSizingGuide(shoe.slug)?.note ?? "No verified model-specific sizing guidance."}</p><Link href={`/shoes/${encodeURIComponent(shoe.slug)}`} className={linkClass}>Check size reference</Link></td>)}
                 </tr>
                 <tr className="border-t border-stone-200">
                   <th scope="row" className="p-4 font-medium">Your fitting</th>

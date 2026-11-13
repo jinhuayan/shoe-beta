@@ -5,7 +5,7 @@ import { validateFitRecord } from "@/lib/fit-records";
 
 const headers = { "Cache-Control": "private, no-store" };
 const shoeSelect = { id: true, slug: true, brand: true, model: true, isSample: true } as const;
-const recordSelect = { photo: { select: { recordId: true } }, id: true, sizeEu: true, fit: true, rating: true, notes: true, createdAt: true, shoe: { select: shoeSelect } } as const;
+const recordSelect = { photo: { select: { recordId: true } }, id: true, sizeEu: true, fit: true, toeFit: true, forefootFit: true, heelFit: true, rating: true, notes: true, createdAt: true, shoe: { select: shoeSelect } } as const;
 
 async function handleRecords(request: Request) {
   try {
