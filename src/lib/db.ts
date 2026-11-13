@@ -1,5 +1,7 @@
 import "server-only";
 
+import { Pool } from "pg";
+import { attachDatabasePool } from "@vercel/functions";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
 
@@ -16,8 +18,12 @@ export function getDb(): PrismaClient {
   }
 
   if (!globalForPrisma.prisma) {
+    const pool = new Pool({ connectionString, max: 5, connectionTimeoutMillis: 5_000, idleTimeoutMillis: 5_000, keepAlive: true });
+    pool.on("error", () => console.error("Idle database connection failed."));
+    if (process.env.VERCEL) attachDatabasePool(pool);
     globalForPrisma.prisma = new PrismaClient({
-      adapter: new PrismaPg({ connectionString }),
+      adapter: new PrismaPg(pool, { disposeExternalPool: true }),
+      transactionOptions: { maxWait: 10_000, timeout: 15_000 },
     });
   }
 
