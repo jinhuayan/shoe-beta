@@ -165,6 +165,20 @@ try {
   assert.ok(shortlist.shoes.every((shoe) => !shoe.isSample && !shoe.slug.startsWith("sample-")));
   const widthOnly = await (await fetch(`${baseURL}/api/recommendations`, { method: "POST", body: answers({ width: "WIDE", heelVolume: "UNKNOWN", experience: "UNKNOWN", discipline: "UNKNOWN", fitPreference: "UNKNOWN" }) })).json();
   assert.deepEqual(widthOnly, { status: "empty", shoes: [] });
+  const sizedResponse = await fetch(`${baseURL}/api/recommendations`, { method: "POST", body: answers({ streetSizeEu: "40", fitPreference: "PERFORMANCE", experience: "ADVANCED", discipline: "BOULDERING" }) });
+  assert.equal(sizedResponse.status, 200);
+  assert.match(sizedResponse.headers.get("cache-control"), /no-store/);
+  const sized = await sizedResponse.json();
+  const vsr = sized.shoes.find((shoe) => shoe.slug === "scarpa-instinct-vsr");
+  assert.equal(vsr.sizeReference.status, "available");
+  assert.deepEqual(vsr.sizeReference.sizes, [38, 38.5, 39]);
+  assert.equal(sized.shoes.find((shoe) => shoe.slug === "scarpa-drago").sizeReference.status, "unavailable");
+  const withoutStreet = await (await fetch(`${baseURL}/api/recommendations`, { method: "POST", body: answers({ streetSizeEu: "", fitPreference: "PERFORMANCE", experience: "ADVANCED", discipline: "BOULDERING" }) })).json();
+  assert.deepEqual(withoutStreet.shoes.map((shoe) => shoe.slug), sized.shoes.map((shoe) => shoe.slug));
+  assert.ok(withoutStreet.shoes.every((shoe) => shoe.sizeReference.status === "unavailable"));
+  assert.match(await (await fetch(`${baseURL}/shoes/scarpa-instinct-vsr`)).text(), /Check a size reference/);
+  assert.match(await (await fetch(`${baseURL}/shoes/la-sportiva-solution`)).text(), /No verified model-specific sizing guidance/);
+  console.log("Passed sourced size references, missing inputs, unchanged shoe rankings, detail integration and uncached responses.");
   console.log("Passed non-destructive catalogue seeding, search, combined filters, source links, and real-shoe recommendations.");
 
   const compare = async (query = "") => {

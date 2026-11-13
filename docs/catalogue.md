@@ -8,6 +8,6 @@ SOFT is used only where the manufacturer explicitly describes soft shoe construc
 
 La Sportiva's [official laces table](https://www.lasportiva.com/media/docs/LACES_table.pdf) also confirms the lace-up models (Tarantulace, Finale, Miura, TC Pro, Katana Lace). Individual product pages are linked in the seed and details.
 
-Forefoot width and heel volume remain UNKNOWN throughout this set. Overall volume, LV naming, a rounded toe box, and customer reviews do not establish these specific attributes. We do not infer measurements, fit guarantees, or recommended EU sizes.
+Forefoot width and heel volume remain UNKNOWN throughout this set. Overall volume, LV naming, a rounded toe box, and customer reviews do not establish these specific attributes. These labels do not establish measurements, fit guarantees, or sizes. Model-specific manufacturer sizing notes are handled separately in the [sizing reference](sizing.md).
 
 The seed inserts missing slugs only. To revise an existing entry, update it deliberately after checking the source; changing the seed does not overwrite database edits. Set the review date only when that entry is checked again. Do not delete shoes referenced by fit records to refresh the catalogue.

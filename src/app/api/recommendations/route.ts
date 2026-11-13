@@ -2,25 +2,27 @@ import { getDb } from "@/lib/db";
 import { validateQuestionnaire } from "@/lib/questionnaire";
 import { getRecommendationRules, recommendShoes } from "@/lib/recommendations";
 
+const headers = { "Cache-Control": "no-store" };
+
 export async function POST(request: Request) {
   let data: FormData;
   try {
     data = await request.formData();
   } catch {
-    return Response.json({ error: "Submit questionnaire form data." }, { status: 400 });
+    return Response.json({ error: "Submit questionnaire form data." }, { status: 400, headers });
   }
 
   const { profile, errors } = validateQuestionnaire(data);
-  if (!profile) return Response.json({ error: "Check your questionnaire answers.", errors }, { status: 400 });
-  if (!getRecommendationRules(profile).length) return Response.json(recommendShoes(profile, []));
+  if (!profile) return Response.json({ error: "Check your questionnaire answers.", errors }, { status: 400, headers });
+  if (!getRecommendationRules(profile).length) return Response.json(recommendShoes(profile, []), { headers });
 
   try {
     const shoes = await getDb().shoe.findMany({
       where: { isSample: false },
       select: { slug: true, brand: true, model: true, isSample: true, downturn: true, stiffness: true, width: true, heelVolume: true },
     });
-    return Response.json(recommendShoes(profile, shoes));
+    return Response.json(recommendShoes(profile, shoes), { headers });
   } catch {
-    return Response.json({ error: "The catalogue is unavailable. Please try again." }, { status: 503 });
+    return Response.json({ error: "The catalogue is unavailable. Please try again." }, { status: 503, headers });
   }
 }

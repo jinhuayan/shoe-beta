@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { ShoeSizeCalculator } from "@/components/shoe-size-calculator";
+import { getSizingGuide } from "@/lib/shoe-sizing";
 import { SaveShoesButton } from "@/components/save-shoes-button";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -67,6 +69,11 @@ export default async function ShoePage({ params, searchParams }: ShoePageProps) 
           <p>Unknown means the attribute has not been confirmed. Overall shoe volume does not establish forefoot width or heel volume. These details do not predict your shoe size.</p>
         </section>
       )}
+      {!shoe.isSample && <section className="space-y-3">
+        <h2 className="text-xl font-semibold">Model-specific sizing notes</h2>
+        <p className="text-stone-600">{getSizingGuide(shoe.slug)?.note ?? "No verified model-specific sizing guidance is available yet."}</p>
+        <ShoeSizeCalculator slug={shoe.slug} />
+      </section>}
       {!shoe.isSample && <SaveShoesButton slugs={[shoe.slug]} />}
       {!shoe.isSample && <p><Link href={{ pathname: "/compare", query: { shoe: shoe.slug } }} className="underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">Compare with other shoes</Link></p>}
       <Link href={{ pathname: "/fit-records", query: { shoe: shoe.slug } }} className="inline-block rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">Record a fitting</Link>
