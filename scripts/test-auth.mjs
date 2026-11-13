@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
+import { createServer as createHTTPServer } from "node:http";
 
 const project = fileURLToPath(new URL("..", import.meta.url));
 const testURL = process.env.TEST_DATABASE_URL;
@@ -25,6 +26,27 @@ assert.ok(["postgres:", "postgresql:"].includes(database.protocol)
 const env = { ...process.env, DATABASE_URL: testURL, NODE_ENV: "production", NEXT_TELEMETRY_DISABLED: "1" };
 for (const name of ["DOTENV_CONFIG_PATH", "DATABASE_URL_POOLED", "BETTER_AUTH_SECRET", "BETTER_AUTH_SECRETS", "BETTER_AUTH_URL", "VERCEL_URL"]) delete env[name];
 const pool = new pg.Pool({ connectionString: testURL, max: 1, connectionTimeoutMillis: 3000 });
+const objects = new Map();
+let storageFailure = "";
+const storageServer = createHTTPServer(async (req, res) => {
+  if (!req.headers.authorization?.startsWith("AWS4-HMAC-SHA256")) { res.writeHead(403).end(); return; }
+  if (req.method === storageFailure) { res.writeHead(503).end("<Error><Code>ServiceUnavailable</Code></Error>"); return; }
+  const key = new URL(req.url, "http://localhost").pathname;
+  if (req.method === "PUT") {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    objects.set(key, Buffer.concat(chunks));
+    res.writeHead(200, { ETag: '"fixture"' }).end();
+  } else if (req.method === "GET") {
+    const bytes = objects.get(key);
+    if (!bytes) { res.writeHead(404).end("<Error><Code>NoSuchKey</Code></Error>"); return; }
+    res.writeHead(200, { "Content-Type": "image/png", "Content-Length": bytes.length }).end(bytes);
+  } else if (req.method === "DELETE") { objects.delete(key); res.writeHead(204).end(); }
+  else res.writeHead(405).end();
+});
+storageServer.listen(0, "127.0.0.1");
+await once(storageServer, "listening");
+Object.assign(env, { SPACES_ENDPOINT: `http://127.0.0.1:${storageServer.address().port}`, SPACES_BUCKET: "photos-test", SPACES_ACCESS_KEY_ID: "local-test", SPACES_SECRET_ACCESS_KEY: "local-test-secret" });
 const server = createServer();
 server.listen(0, "127.0.0.1");
 await once(server, "listening");
@@ -257,6 +279,54 @@ try {
   assert.equal((await recordsRequest({ cookies: bobCookies })).body.records.length, 1);
   console.log("Passed editing, deletion, ownership checks, rejected updates, and missing-record handling.");
 
+  const photoURL = `${baseURL}/api/fit-records/${firstRecord.body.record.id}/photo`;
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aP1sAAAAASUVORK5CYII=", "base64");
+  const photoForm = (bytes = png, type = "image/png") => {
+    const form = new FormData(); form.set("photo", new Blob([bytes], { type }), "private-name.png"); return form;
+  };
+  const photoRequest = (method, cookies = aliceCookies, body, origin = baseURL, suffix = "") => fetch(photoURL + suffix, {
+    method, headers: { Cookie: [...cookies.values()].join("; "), ...(origin ? { Origin: origin } : {}) }, body,
+  });
+  assert.equal((await photoRequest("GET", new Map())).status, 401);
+  for (const method of ["GET", "POST", "DELETE"]) assert.equal((await photoRequest(method, bobCookies, method === "POST" ? photoForm() : undefined)).status, 404);
+  assert.equal((await photoRequest("POST", aliceCookies, photoForm(), "https://example.invalid")).status, 403);
+  assert.equal((await photoRequest("GET")).status, 404);
+  assert.equal((await photoRequest("POST", aliceCookies, photoForm(Buffer.from("not an image")))).status, 400);
+  assert.equal((await photoRequest("POST", aliceCookies, photoForm(png, "image/jpeg"))).status, 400);
+  assert.equal((await photoRequest("POST", aliceCookies, photoForm(Buffer.alloc(2 * 1024 * 1024 + 1)))).status, 413);
+  const multiple = photoForm(); multiple.append("photo", new Blob([png], { type: "image/png" }), "second.png");
+  assert.equal((await photoRequest("POST", aliceCookies, multiple)).status, 400);
+  assert.equal(objects.size, 0);
+  storageFailure = "PUT";
+  assert.equal((await photoRequest("POST", aliceCookies, photoForm())).status, 503);
+  storageFailure = "";
+  await pool.query('ALTER TABLE "FitPhoto" ADD CONSTRAINT test_reject_photo CHECK (size < 0)');
+  assert.equal((await photoRequest("POST", aliceCookies, photoForm())).status, 503);
+  await pool.query('ALTER TABLE "FitPhoto" DROP CONSTRAINT test_reject_photo');
+  assert.equal(objects.size, 0);
+  const uploads = await Promise.all([photoRequest("POST", aliceCookies, photoForm()), photoRequest("POST", aliceCookies, photoForm())]);
+  assert.deepEqual(uploads.map((r) => r.status).sort(), [201, 409]);
+  assert.equal(objects.size, 1);
+  const viewed = await photoRequest("GET");
+  assert.equal(viewed.status, 200);
+  assert.equal(viewed.headers.get("content-type"), "image/png");
+  assert.match(viewed.headers.get("cache-control"), /private.*no-store/);
+  assert.match(viewed.headers.get("content-disposition"), /^inline/);
+  assert.deepEqual(Buffer.from(await viewed.arrayBuffer()), png);
+  const download = await photoRequest("GET", aliceCookies, undefined, baseURL, "?download=1");
+  assert.match(download.headers.get("content-disposition"), /^attachment/);
+  assert.deepEqual(Buffer.from(await download.arrayBuffer()), png);
+  assert.equal((await recordsRequest({ method: "DELETE", cookies: aliceCookies, body: { id: firstRecord.body.record.id } })).status, 409);
+  storageFailure = "DELETE";
+  assert.equal((await photoRequest("DELETE")).status, 503);
+  storageFailure = "";
+  assert.equal((await photoRequest("GET")).status, 200);
+  assert.equal((await photoRequest("DELETE")).status, 200);
+  assert.equal((await photoRequest("GET")).status, 404);
+  assert.equal(objects.size, 0);
+  assert.equal((await recordsRequest({ cookies: aliceCookies })).body.records.length, 2);
+  console.log("Passed private photo uploads, download, removal, ownership, limits, concurrency, and storage/database failure cleanup.");
+
   const oldAliceCookies = new Map(aliceCookies);
   assert.equal((await request("/sign-out", { method: "POST", cookies: aliceCookies, body: {} })).status, 200);
   assert.deepEqual((await request("/get-session", { cookies: oldAliceCookies })).body, null);
@@ -291,6 +361,13 @@ try {
   console.log("Passed Secure cookie configuration for an HTTPS auth origin.");
 
   await stop();
+  const bucket = env.SPACES_BUCKET;
+  delete env.SPACES_BUCKET;
+  await start();
+  assert.equal((await photoRequest("POST", aliceCookies, photoForm())).status, 503);
+  assert.equal((await fetch(`${baseURL}/shoes`)).status, 200);
+  env.SPACES_BUCKET = bucket;
+  await stop();
   await start(false);
   const unavailable = await request("/get-session");
   assert.equal(unavailable.status, 503);
@@ -307,5 +384,7 @@ try {
   await pool.query('DELETE FROM "user" WHERE email = ANY($1::text[])', [emails]).catch(() => {});
   await pool.query('DELETE FROM "Shoe" WHERE id = $1', [fitShoeId]).catch(() => {});
   await pool.end();
+  storageServer.closeAllConnections();
+  await new Promise((resolve) => storageServer.close(resolve));
   await rm(runtime, { recursive: true, force: true });
 }
