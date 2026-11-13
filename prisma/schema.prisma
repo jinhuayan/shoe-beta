@@ -93,6 +93,7 @@ model Shoe {
   width           FootWidth   @default(UNKNOWN)
   heelVolume      HeelVolume  @default(UNKNOWN)
   fitRecords      FitRecord[]
+  savedBy         SavedShoe[]
 }
 
 model User {
@@ -107,6 +108,7 @@ model User {
   accounts        Account[]
   climbingProfile ClimbingProfile?
   fitRecords      FitRecord[]
+  savedShoes      SavedShoe[]
 
   @@map("user")
 }
@@ -197,4 +199,15 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+model SavedShoe {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shoeId    String
+  shoe      Shoe     @relation(fields: [shoeId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+
+  @@id([userId, shoeId])
+  @@index([shoeId])
 }

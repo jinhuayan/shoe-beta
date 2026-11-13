@@ -227,6 +227,31 @@ try {
   assert.equal(forbidden.status, 403);
   assert.equal((await request("/get-session", { cookies: aliceCookies })).body.user.id, alice.body.user.id);
   console.log("Passed session ownership and origin checks.");
+  const savedRequest = (options = {}) => request("", { ...options, api: "/api/saved-shoes" });
+  const saveBody = { slugs: ["scarpa-drago", "scarpa-helix-mens", "la-sportiva-solution"], userId: bob.body.user.id };
+  for (const method of ["GET", "POST", "DELETE"]) assert.equal((await savedRequest({ method, body: method === "GET" ? undefined : saveBody })).status, 401);
+  assert.equal((await savedRequest({ cookies: aliceCookies })).body.saved.length, 0);
+  for (const origin of [null, "https://example.invalid"]) assert.equal((await savedRequest({ method: "POST", cookies: aliceCookies, origin, body: saveBody })).status, 403);
+  for (const body of [{}, { slugs: [] }, { slugs: ["missing-shoe"] }, { slugs: [fitShoeId] }, { slugs: ["scarpa-drago", "missing-shoe"] }]) assert.equal((await savedRequest({ method: "POST", cookies: aliceCookies, body })).status, 400);
+  assert.equal((await savedRequest({ cookies: aliceCookies })).body.saved.length, 0);
+  const saves = await Promise.all([1, 2].map(() => savedRequest({ method: "POST", cookies: aliceCookies, body: saveBody })));
+  assert.ok(saves.every((response) => response.status === 200));
+  assert.equal(saves.reduce((total, response) => total + response.body.added, 0), 3);
+  const savedAlice = await savedRequest({ cookies: aliceCookies });
+  assert.match(savedAlice.cacheControl, /private.*no-store/);
+  assert.equal(savedAlice.body.saved.length, 3);
+  assert.equal((await savedRequest({ cookies: bobCookies })).body.saved.length, 0);
+  assert.ok(savedAlice.body.shoes.every((shoe) => !shoe.isSample));
+  const savedId = savedAlice.body.saved[0].shoe.id;
+  assert.equal((await savedRequest({ method: "DELETE", cookies: bobCookies, body: { shoeId: savedId, userId: alice.body.user.id } })).status, 404);
+  assert.equal((await savedRequest({ method: "DELETE", cookies: aliceCookies, origin: null, body: { shoeId: savedId } })).status, 403);
+  assert.equal((await savedRequest({ method: "DELETE", cookies: aliceCookies, body: {} })).status, 400);
+  assert.equal((await savedRequest({ method: "DELETE", cookies: aliceCookies, body: { shoeId: savedId } })).status, 200);
+  assert.equal((await savedRequest({ method: "DELETE", cookies: aliceCookies, body: { shoeId: savedId } })).status, 404);
+  assert.equal((await savedRequest({ cookies: aliceCookies })).body.saved.length, 2);
+  assert.equal((await fetch(`${baseURL}/saved-shoes`)).status, 200);
+  console.log("Passed saved-shoe validation, concurrent deduplication, ownership, cache headers, origin checks and removal.");
+
 
   assert.equal((await profileRequest()).status, 401);
   assert.equal((await profileRequest({ method: "PUT", body: answers() })).status, 401);
@@ -414,6 +439,9 @@ try {
   assert.equal((await recordsRequest({ cookies: bobCookies })).status, 401);
   for (const method of ["PATCH", "DELETE"]) assert.equal((await recordsRequest({ method, cookies: bobCookies, body: recordAnswers({ id: firstRecord.body.record.id }) })).status, 401);
   assert.equal((await recordsRequest({ method: "POST", cookies: bobCookies, body: recordAnswers() })).status, 401);
+  assert.equal((await savedRequest({ cookies: oldAliceCookies })).status, 401);
+  assert.equal((await savedRequest({ cookies: aliceCookies })).body.saved.length, 2);
+  assert.equal((await savedRequest({ cookies: bobCookies })).status, 401);
   console.log("Passed sign-out, wrong-password rejection, sign-in, expiry, and restart persistence.");
 
   await stop();
@@ -438,6 +466,7 @@ try {
   assert.equal((await profileRequest()).status, 503);
   assert.equal((await recordsRequest()).status, 503);
   assert.equal((await fetch(`${baseURL}/shoes`)).status, 200);
+  assert.equal((await savedRequest()).status, 503);
   console.log("Passed missing-secret handling and public catalogue access.");
 } catch (error) {
   console.error(logs);
