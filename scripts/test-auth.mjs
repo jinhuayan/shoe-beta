@@ -167,6 +167,35 @@ try {
   assert.deepEqual(widthOnly, { status: "empty", shoes: [] });
   console.log("Passed non-destructive catalogue seeding, search, combined filters, source links, and real-shoe recommendations.");
 
+  const compare = async (query = "") => {
+    const response = await fetch(`${baseURL}/compare${query}`);
+    assert.equal(response.status, 200);
+    return response.text();
+  };
+  assert.match(await compare(), /Choose at least two different shoes/);
+  const selectedComparison = await compare("?shoe=scarpa-drago&shoe=scarpa-helix-mens&shoe=la-sportiva-solution");
+  assert.match(selectedComparison, /Shoe comparison table/);
+  assert.match(selectedComparison, /Manufacturer source/);
+  assert.match(selectedComparison, /Unknown/);
+  assert.ok(selectedComparison.includes('/fit-records?shoe=scarpa-drago'));
+  assert.ok(selectedComparison.includes('https://us.scarpa.com/products/drago'));
+  const diffOnly = await compare("?shoe=scarpa-drago&shoe=scarpa-helix-mens&differences=1");
+  assert.ok(diffOnly.includes('scope="row" class="p-4 font-medium">Downturn'));
+  assert.ok(!diffOnly.includes('scope="row" class="p-4 font-medium">Forefoot width'));
+  assert.match(await compare("?shoe=scarpa-drago&shoe=scarpa-drago-lv&differences=1"), /No differing catalogue attributes/);
+  const ignored = await compare(`?shoe=${fitShoeId}&shoe=does-not-exist&shoe=scarpa-drago&shoe=scarpa-helix-mens`);
+  assert.match(ignored, /Some selections were skipped/);
+  assert.ok(!ignored.includes(`value="${fitShoeId}"`));
+  assert.match(await compare("?shoe=scarpa-drago&shoe=scarpa-drago"), /Choose at least two different shoes/);
+  const realIds = (await pool.query('SELECT id FROM "Shoe" WHERE NOT "isSample"')).rows.map(({ id }) => id);
+  try {
+    await pool.query('UPDATE "Shoe" SET "isSample" = true WHERE id = ANY($1::text[])', [realIds]);
+    assert.match(await compare(), /No climbing shoes have been added yet/);
+  } finally {
+    await pool.query('UPDATE "Shoe" SET "isSample" = false WHERE id = ANY($1::text[])', [realIds]);
+  }
+  console.log("Passed guest comparison, difference view, source/fitting links, invalid selections, sample exclusion, and empty catalogue.");
+
   assert.deepEqual((await request("/get-session")).body, null);
   const invalid = await request("/sign-up/email", { method: "POST", body: { name: "Test", email: emails[0], password: "short" } });
   assert.equal(invalid.status, 400);

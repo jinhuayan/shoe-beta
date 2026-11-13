@@ -2,6 +2,16 @@
 
 A climbing-shoe project built with Next.js, TypeScript, Tailwind CSS, and PostgreSQL. The first feature is a read-only shoe catalogue.
 
+## Shoe comparison
+
+Open `/compare` to choose up to three different public catalogue shoes. The table shows downturn, stiffness, closure, forefoot width, heel volume, manufacturer sources/review dates, and links to record a fitting. Catalogue cards and shoe details can preselect a shoe; questionnaire results link to a comparison of the whole shortlist.
+
+Selections are repeated `shoe` URL parameters, such as `/compare?shoe=scarpa-drago&shoe=scarpa-helix-mens`. Their order is preserved. Duplicate, oversized, missing, and fictional sample entries are skipped with a notice; only the first three distinct valid-length slugs are considered. Replace a selection in the form, use **Remove**, or clear the comparison. Reloading and sharing the URL preserve the selection without an account or browser storage.
+
+**Show only differing attributes** (`differences=1`) hides equal attribute rows while keeping sources and fitting links visible. Equal Unknown labels do not establish equal fit, and no sizes or fit scores are inferred. The mobile table scrolls horizontally within its labelled, keyboard-focusable region. **Copy comparison link** copies only shoe selections and the view flag; it includes no profile or private fit data. If clipboard access is blocked, copy the address-bar URL instead. A failed catalogue load offers retry while keeping the URL.
+
+No migration, seed changes, or new environment variables are required for comparison. Unit tests cover selection normalization, safe URL encoding, and difference rules; the existing `test:auth` integration suite also checks public comparison against local PostgreSQL.
+
 ## Run
 
 Use Node.js 24. With nvm, run `nvm install` followed by `nvm use`.

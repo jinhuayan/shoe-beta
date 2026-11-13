@@ -66,6 +66,7 @@ export default async function ShoePage({ params, searchParams }: ShoePageProps) 
           <p>Unknown means the attribute has not been confirmed. Overall shoe volume does not establish forefoot width or heel volume. These details do not predict your shoe size.</p>
         </section>
       )}
+      {!shoe.isSample && <p><Link href={{ pathname: "/compare", query: { shoe: shoe.slug } }} className="underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">Compare with other shoes</Link></p>}
       <Link href={{ pathname: "/fit-records", query: { shoe: shoe.slug } }} className="inline-block rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">Record a fitting</Link>
       <p><Link href="/shops" className="rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">Find shops to ask about trying climbing shoes</Link></p>
     </main>
