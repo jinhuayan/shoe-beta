@@ -15,7 +15,7 @@ Open the Local URL printed in the terminal, normally http://localhost:3000. The 
 
 Click a shoe name to open its details at `/shoes/[slug]`. Unknown shoe URLs show a not-found page with a link back to the catalogue.
 
-Filter climbing shoes by downturn, stiffness, and closure. Filters are saved in the URL and kept when opening a shoe and returning to the catalogue. Invalid or repeated filter values are ignored.
+Search climbing shoes by brand or model and filter by brand, downturn, stiffness, and closure. Filters are saved in the URL and kept when opening a shoe and returning to the catalogue. Invalid or repeated filter values are ignored.
 
 At `/questionnaire`, visitors can enter foot measurements, foot shape, climbing experience, discipline, and fit preference, then review and edit their answers. Measurements are optional and every choice supports “Unsure”. Guest answers stay in the current page state. Signed-in users can explicitly save and load a profile. Choose **Find climbing shoes** after reviewing to request a shortlist from the configured catalogue.
 
@@ -38,7 +38,7 @@ Unknown attributes contribute zero points and appear as tradeoffs. Unsure foot-w
 
 The general starting points come from [SCARPA's shoe guide](https://www.scarpa.co.uk/blogs/blog/how-to-choose-a-climbing-shoe) and [construction guidance](https://scarpa.com/collections/climbing-shoes). The trad-support rule is our inference from long-route guidance. Weights and cutoffs are project choices, not manufacturer ratings or measured fit probabilities. Terrain can change which construction is suitable; reasons and tradeoffs describe these limited rules, not a guarantee of comfort or performance.
 
-Width and heel-volume matching compare qualitative catalogue labels with questionnaire answers. The sample labels are fictional fixtures for checking the rules, not verified product fit data. Toe shape and measurements are not scored. Size estimation remains unavailable; neither street size nor foot length is converted into a climbing shoe size. Fictional samples stay marked as samples in results.
+Width and heel-volume matching compare qualitative catalogue labels with questionnaire answers. The current real-shoe seed leaves both attributes unknown, so they do not earn matching points. Fictional samples are used only as test fixtures and are excluded from public recommendations. Toe shape and measurements are not scored. Size estimation remains unavailable; neither street size nor foot length is converted into a climbing shoe size.
 
 ## Check
 
@@ -151,7 +151,7 @@ With Git integration enabled, Vercel creates preview deployments for branch push
 
 GitHub CI and Vercel automatic deployments run independently. This setup does not require additional Vercel Deployment Checks.
 
-The Prisma Postgres integration supplies `DATABASE_URL_POOLED` for application requests and a direct `DATABASE_URL` for migrations. The app prefers the pooled URL and falls back to the direct URL. Use a separate test database for Preview and the production database for Production; a local `localhost` database will not work on Vercel. From a trusted shell configured for each target database, run `npm run db:deploy` before deploying code that needs a new schema. With a direct URL in `.env.local`, run `DOTENV_CONFIG_PATH=.env.local npm run db:deploy`. Sample seeding is optional and separate. The build generates Prisma Client but does not migrate or seed a database. Redeploy after changing environment variables. See [Prisma Postgres on Vercel](https://www.prisma.io/docs/guides/postgres/vercel).
+The Prisma Postgres integration supplies `DATABASE_URL_POOLED` for application requests and a direct `DATABASE_URL` for migrations. The app prefers the pooled URL and falls back to the direct URL. Use a separate test database for Preview and the production database for Production; a local `localhost` database will not work on Vercel. From a trusted shell configured for each target database, run `npm run db:deploy` before deploying code that needs a new schema. With a direct URL in `.env.local`, run `DOTENV_CONFIG_PATH=.env.local npm run db:deploy`. Catalogue seeding is a separate manual step. The build generates Prisma Client but does not migrate or seed a database. Redeploy after changing environment variables. See [Prisma Postgres on Vercel](https://www.prisma.io/docs/guides/postgres/vercel).
 
 ## Database setup
 
@@ -168,9 +168,9 @@ To prepare a local connection:
 
 The application uses `getDb()` from `src/lib/db.ts` in Server Components, Server Actions, or Route Handlers. The client is created when first requested and reused across requests and development reloads. Calling it requires `DATABASE_URL_POOLED` or `DATABASE_URL`; importing it does not open a connection. Prisma commands and the seed use the direct `DATABASE_URL`. Keep this module on the server.
 
-The `Shoe` model stores a unique slug, brand, model name, optional description, a sample-data flag, and climbing attributes: downturn, stiffness, closure, forefoot width, and heel volume. New attributes default to `UNKNOWN` for existing records. Generated files under `src/generated/prisma/` are ignored by Git and ESLint. Local `.env` files stay ignored; `.env.example` is tracked as a template.
+The `Shoe` model stores a unique slug, brand, model name, optional description, optional manufacturer URL/review date, a sample-data flag, and climbing attributes: downturn, stiffness, closure, forefoot width, and heel volume. New attributes default to `UNKNOWN` for existing records. Generated files under `src/generated/prisma/` are ignored by Git and ESLint. Local `.env` files stay ignored; `.env.example` is tracked as a template.
 
-Apply the included migration, regenerate the client, and optionally load the sample catalogue:
+Apply the included migration, regenerate the client, and load the sourced catalogue:
 
 ```bash
 npm run db:deploy
@@ -180,7 +180,16 @@ npm run db:seed
 
 Restart the dev server after applying migrations and regenerating Prisma Client.
 
-The seed inserts three **fictional climbing shoes** marked as samples. Repeating it skips existing slugs and preserves names and descriptions. Existing sample shoes receive downturn/stiffness/closure only when all three are `UNKNOWN`, and width/heel volume only when both are `UNKNOWN`. Edited attribute groups and non-sample records are preserved. This is development data, not verified product or sizing information.
+The seed adds 20 real SCARPA and La Sportiva climbing shoes. Every entry includes its official product URL and a fixed review date. Repeating it skips existing slugs and preserves all edits. Existing fictional shoes and their fit records remain in the database, but samples are excluded from public catalogue searches and recommendations. Existing sample detail links and private records still work.
+
+Apply the source-field migration before deploying this version, then seed the target database:
+
+```bash
+DOTENV_CONFIG_PATH=.env.local npm run db:deploy
+DOTENV_CONFIG_PATH=.env.local npm run db:seed
+```
+
+`/shoes` supports brand, keyword, downturn, stiffness, and closure filters together. Keywords match every word across brand/model, without case sensitivity. Detail links preserve the search. Unknown attributes are unverified and do not earn recommendation points; width-only answers can produce an empty shortlist with this dataset. See [catalogue sources and normalization](docs/catalogue.md).
 
 The catalogue queries PostgreSQL on each request with a Server Component. It shows an empty state before shoes are added, a loading state while fetching, and a retry option if loading fails. A configured database with migrations applied is required to view the catalogue; production builds do not query it.
 

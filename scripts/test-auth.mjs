@@ -132,9 +132,40 @@ try {
   const existing = await pool.query("SELECT to_regclass('public.\"Shoe\"') AS name");
   const shoesBefore = existing.rows[0].name ? (await pool.query('SELECT * FROM "Shoe" ORDER BY id')).rows : null;
   execFileSync("npm", ["run", "db:deploy"], { cwd: project, env, stdio: "inherit" });
-  if (shoesBefore) assert.deepEqual((await pool.query('SELECT * FROM "Shoe" ORDER BY id')).rows, shoesBefore);
+  if (shoesBefore) {
+    const after = (await pool.query('SELECT * FROM "Shoe" ORDER BY id')).rows;
+    assert.deepEqual(after.map((row, i) => Object.fromEntries(Object.keys(shoesBefore[i]).map((key) => [key, row[key]]))), shoesBefore);
+  }
   await pool.query('INSERT INTO "Shoe" (id, slug, brand, model, "isSample") VALUES ($1, $2, $3, $4, true)', [fitShoeId, fitShoeId, "Fit test", "Climbing shoe"]);
+  const seed = () => execFileSync("npm", ["run", "db:seed"], { cwd: project, env, stdio: "inherit" });
+  seed();
+  const catalogueBefore = (await pool.query('SELECT * FROM "Shoe" ORDER BY id')).rows;
+  const drago = catalogueBefore.find((shoe) => shoe.slug === "scarpa-drago");
+  assert.ok(drago?.sourceUrl);
+  await pool.query('UPDATE "Shoe" SET description = $1 WHERE id = $2', ["Edited catalogue description", drago.id]);
+  seed();
+  const catalogueAfter = (await pool.query('SELECT * FROM "Shoe" ORDER BY id')).rows;
+  assert.deepEqual(catalogueAfter, catalogueBefore.map((shoe) => shoe.id === drago.id ? { ...shoe, description: "Edited catalogue description" } : shoe));
+  await pool.query('UPDATE "Shoe" SET description = $1 WHERE id = $2', [drago.description, drago.id]);
   await start();
+  const cataloguePage = await (await fetch(`${baseURL}/shoes`)).text();
+  assert.ok(cataloguePage.includes("scarpa-drago"));
+  assert.ok(!cataloguePage.includes(fitShoeId));
+  const filteredPage = await (await fetch(`${baseURL}/shoes?q=la%20sportiva%20solution&brand=La%20Sportiva&closure=HOOK_AND_LOOP`)).text();
+  assert.ok(filteredPage.includes("/shoes/la-sportiva-solution?"));
+  assert.ok(!filteredPage.includes("/shoes/scarpa-drago"));
+  assert.ok(!filteredPage.includes("/shoes/la-sportiva-solution-comp"));
+  assert.match(await (await fetch(`${baseURL}/shoes?q=solution&brand=SCARPA`)).text(), /No climbing shoes match/);
+  const detailPage = await (await fetch(`${baseURL}/shoes/scarpa-drago?q=drago&brand=SCARPA`)).text();
+  assert.ok(detailPage.includes('https://us.scarpa.com/products/drago'));
+  assert.ok(detailPage.includes('2026-11-13'));
+  assert.ok(detailPage.includes('/shoes?q=drago&amp;brand=SCARPA'));
+  const shortlist = await (await fetch(`${baseURL}/api/recommendations`, { method: "POST", body: answers() })).json();
+  assert.equal(shortlist.status, "ranked");
+  assert.ok(shortlist.shoes.every((shoe) => !shoe.isSample && !shoe.slug.startsWith("sample-")));
+  const widthOnly = await (await fetch(`${baseURL}/api/recommendations`, { method: "POST", body: answers({ width: "WIDE", heelVolume: "UNKNOWN", experience: "UNKNOWN", discipline: "UNKNOWN", fitPreference: "UNKNOWN" }) })).json();
+  assert.deepEqual(widthOnly, { status: "empty", shoes: [] });
+  console.log("Passed non-destructive catalogue seeding, search, combined filters, source links, and real-shoe recommendations.");
 
   assert.deepEqual((await request("/get-session")).body, null);
   const invalid = await request("/sign-up/email", { method: "POST", body: { name: "Test", email: emails[0], password: "short" } });

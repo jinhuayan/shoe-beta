@@ -16,6 +16,7 @@ export async function POST(request: Request) {
 
   try {
     const shoes = await getDb().shoe.findMany({
+      where: { isSample: false },
       select: { slug: true, brand: true, model: true, isSample: true, downturn: true, stiffness: true, width: true, heelVolume: true },
     });
     return Response.json(recommendShoes(profile, shoes));
