@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { SizeReference } from "@/components/size-reference";
 import { SaveShoesButton } from "@/components/save-shoes-button";
 import { useActionState } from "react";
 import { heelVolumeLabels, widthLabels } from "@/lib/climbing-shoes";
@@ -65,7 +66,7 @@ export function RecommendationResults({ values }: { values: QuestionnaireState["
                       <ul className="list-disc space-y-1 pl-5">{shoe.tradeoffs.map((tradeoff) => <li key={tradeoff}>{tradeoff}</li>)}</ul>
                     </div>
                   )}
-                  <p className="text-sm text-stone-500">Size estimate unavailable. Model-specific sizing notes are missing.</p>
+                  <SizeReference reference={shoe.sizeReference} />
                 </li>
               ))}
             </ol>

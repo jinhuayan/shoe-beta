@@ -123,7 +123,7 @@ function ProfileForm({ signedIn, checkingAccount, onSessionExpired }: { signedIn
           )}
           <fieldset className="grid gap-4 rounded-lg border border-stone-200 p-5 sm:grid-cols-2">
             <legend className="px-2 text-lg font-semibold">Your feet</legend>
-            <p className="text-sm text-stone-600 sm:col-span-2">Measurements are optional. Use millimetres for foot length and EU sizing for street shoes.</p>
+            <p className="text-sm text-stone-600 sm:col-span-2">Measurements are optional. Use millimetres for foot length and EU sizing for street shoes. Size references need a street size and a supported fit preference; foot length alone is not converted.</p>
             {Object.entries(measurementFields).map(([name, field]) => {
               const key = name as keyof typeof measurementFields;
               return (

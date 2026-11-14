@@ -1,9 +1,10 @@
+import { getSizeReference, type SizeReference } from "./shoe-sizing";
 import type { Shoe } from "@/generated/prisma/client";
 import { heelVolumeLabels, widthLabels } from "./climbing-shoes";
 import type { QuestionnaireProfile } from "./questionnaire";
 
 export type RecommendationShoe = Pick<Shoe, "slug" | "brand" | "model" | "isSample" | "downturn" | "stiffness" | "width" | "heelVolume">;
-export type RankedShoe = RecommendationShoe & { score: number; reasons: string[]; tradeoffs: string[] };
+export type RankedShoe = RecommendationShoe & { score: number; reasons: string[]; tradeoffs: string[]; sizeReference: SizeReference };
 export type RecommendationResponse = { status: "ranked" | "insufficient" | "empty"; shoes: RankedShoe[] };
 
 type Rule = {
@@ -81,7 +82,7 @@ export function recommendShoes(profile: QuestionnaireProfile, shoes: readonly Re
         tradeoffs.push(rule.tradeoff);
       }
     }
-    return { ...shoe, score, reasons, tradeoffs };
+    return { ...shoe, score, reasons, tradeoffs, sizeReference: getSizeReference(shoe, profile) };
   }).filter((shoe) => shoe.score > 0)
     .sort((a, b) => b.score - a.score || a.brand.localeCompare(b.brand, "en") || a.model.localeCompare(b.model, "en") || a.slug.localeCompare(b.slug, "en"))
     .slice(0, 3);
