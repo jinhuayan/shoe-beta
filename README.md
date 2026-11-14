@@ -2,6 +2,18 @@
 
 A climbing-shoe project built with Next.js, TypeScript, Tailwind CSS, and PostgreSQL. The first feature is a read-only shoe catalogue.
 
+## Private fitting journal
+
+Fit records now include optional toe, forefoot, and heel observations, each using Unsure / Too tight / Comfortable / Too loose. Overall fit remains a separate answer. Existing records default these areas to Unsure; nothing is inferred from notes or overall fit.
+
+The saved-record journal provides a summary of all fittings, distinct shoe models and comfortable-overall observations. Search across brand, model and notes, combine shoe/overall-fit/photo filters, and sort by date, rating or worn EU size. Unrated entries sort last for rating. Filters and selections stay in component state, never in shared URLs or browser storage.
+
+Select two or three records for a private side-by-side comparison of sizes, fit areas, ratings and notes. Different sizes of the same shoe can be compared. Selections survive filtering, reflect edits and photo changes, and exclude deleted records. Clear them explicitly or reload/switch accounts to reset. This is a review of your observations, not an automatic size recommendation or a public comparison link.
+
+Before deploying, run `DOTENV_CONFIG_PATH=.env.local npm run db:deploy`. The additive migration introduces three `OverallFit` columns with UNKNOWN defaults. No seed changes or new environment variables are required. POST/PATCH accept optional `toeFit`, `forefootFit`, and `heelFit`; omitted fields use database defaults on create and preserve existing values on update. Explicit UNKNOWN clears an observation. Sessions, ownership checks and private/no-store responses continue to protect the full dataset; filtering is client-side after the existing owner-scoped fetch.
+
+Unit tests cover validation, filtering, ordering, summary semantics and comparison synchronization. Local database tests cover persisted area observations, invalid writes, cross-account rejection and older clients that omit the new fields.
+
 ## Model-specific size references
 
 Recommendations now include a separate `sizeReference` for each shoe. It never changes the suitability score or ordering. Five exact SCARPA variants have numeric guidance: Drago LV, Instinct VS Men's, Instinct VSR, Helix Men's, and Vapor V. Drago and Origin VS have source notes only because the numeric baseline/unit is ambiguous. Other models report unavailable rather than borrowing a brand-wide adjustment.

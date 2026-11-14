@@ -1,6 +1,9 @@
 export const fitLabels = { UNKNOWN: "Unsure", TIGHT: "Too tight", COMFORTABLE: "Comfortable", LOOSE: "Too loose" };
 
-export type FitRecordErrors = Partial<Record<"shoeId" | "sizeEu" | "fit" | "rating" | "notes", string>>;
+export const fitAreaLabels = { toeFit: "Toe fit", forefootFit: "Forefoot fit", heelFit: "Heel fit" };
+export type FitArea = keyof typeof fitAreaLabels;
+
+export type FitRecordErrors = Partial<Record<"shoeId" | "sizeEu" | "fit" | "rating" | "notes" | FitArea, string>>;
 export type RecordShoe = { id: string; slug: string; brand: string; model: string; isSample: boolean };
 export type SavedFitRecord = {
   photo: { recordId: string } | null;
@@ -8,6 +11,9 @@ export type SavedFitRecord = {
   shoe: RecordShoe;
   sizeEu: number;
   fit: keyof typeof fitLabels;
+  toeFit: keyof typeof fitLabels;
+  forefootFit: keyof typeof fitLabels;
+  heelFit: keyof typeof fitLabels;
   rating: number | null;
   notes: string;
   createdAt: string;
@@ -35,10 +41,18 @@ export function validateFitRecord(body: unknown) {
   }
   if ((input.notes !== undefined && typeof input.notes !== "string") || notes.length > 1000) errors.notes = "Use up to 1,000 characters.";
 
+  const areas: Partial<Record<FitArea, keyof typeof fitLabels>> = {};
+  for (const name of Object.keys(fitAreaLabels) as FitArea[]) {
+    if (input[name] === undefined) continue;
+    const value = read(name);
+    if (typeof input[name] !== "string" || !Object.hasOwn(fitLabels, value)) errors[name] = "Choose a fit, including Unsure.";
+    else areas[name] = value as keyof typeof fitLabels;
+  }
+
   return {
     errors,
     data: Object.keys(errors).length ? null : {
-      shoeId, sizeEu, fit: fit as keyof typeof fitLabels, rating: rating ? Number(rating) : null, notes,
+      ...areas, shoeId, sizeEu, fit: fit as keyof typeof fitLabels, rating: rating ? Number(rating) : null, notes,
     },
   };
 }

@@ -321,6 +321,7 @@ try {
   assert.equal(firstRecord.body.record.notes, recordAnswers().notes);
   assert.equal(firstRecord.body.record.shoe.id, fitShoeId);
   assert.equal(firstRecord.body.record.shoe.isSample, true);
+  for (const field of ["toeFit", "forefootFit", "heelFit"]) assert.equal(firstRecord.body.record[field], "UNKNOWN");
   assert.ok(!Object.hasOwn(firstRecord.body.record, "userId"));
   const secondRecord = await recordsRequest({ method: "POST", cookies: aliceCookies, body: recordAnswers({ sizeEu: "41", fit: "UNKNOWN", rating: "", notes: "" }) });
   assert.equal(secondRecord.status, 201);
@@ -353,12 +354,25 @@ try {
   assert.equal((await recordsRequest({ cookies: aliceCookies })).body.records.length, 2);
   console.log("Passed fit record creation, validation, multiple fittings, cache headers, origin checks, and account isolation.");
 
+  const areaUpdate = await recordsRequest({ method: "PATCH", cookies: aliceCookies, body: recordAnswers({ id: firstRecord.body.record.id, toeFit: "TIGHT", forefootFit: "COMFORTABLE", heelFit: "LOOSE" }) });
+  assert.equal(areaUpdate.status, 200);
+  assert.equal(areaUpdate.body.record.toeFit, "TIGHT");
+  assert.equal(areaUpdate.body.record.forefootFit, "COMFORTABLE");
+  assert.equal(areaUpdate.body.record.heelFit, "LOOSE");
+  for (const invalid of ["PERFECT", null, 42]) assert.equal((await recordsRequest({ method: "PATCH", cookies: aliceCookies, body: recordAnswers({ id: firstRecord.body.record.id, heelFit: invalid }) })).status, 400);
+  assert.equal((await recordsRequest({ method: "PATCH", cookies: bobCookies, body: recordAnswers({ id: firstRecord.body.record.id, toeFit: "LOOSE" }) })).status, 404);
+
   const edited = await recordsRequest({ method: "PATCH", cookies: aliceCookies, body: recordAnswers({ id: firstRecord.body.record.id, userId: bob.body.user.id, sizeEu: "41.5", rating: "", notes: "Updated fitting" }) });
   assert.equal(edited.status, 200);
   assert.equal(edited.body.record.id, firstRecord.body.record.id);
   assert.equal(edited.body.record.createdAt, firstRecord.body.record.createdAt);
   assert.equal(edited.body.record.sizeEu, 41.5);
   assert.equal(edited.body.record.rating, null);
+  assert.equal(edited.body.record.toeFit, "TIGHT");
+  assert.equal(edited.body.record.heelFit, "LOOSE");
+  const persistedArea = (await recordsRequest({ cookies: aliceCookies })).body.records.find((record) => record.id === firstRecord.body.record.id);
+  assert.equal(persistedArea.forefootFit, "COMFORTABLE");
+  console.log("Passed area feedback persistence, validation, legacy partial updates and account isolation.");
   for (const method of ["PATCH", "DELETE"]) {
     assert.equal((await recordsRequest({ method, cookies: bobCookies, body: recordAnswers({ id: firstRecord.body.record.id }) })).status, 404);
     assert.equal((await recordsRequest({ method, cookies: aliceCookies, body: recordAnswers({ id: "missing-record" }) })).status, 404);
