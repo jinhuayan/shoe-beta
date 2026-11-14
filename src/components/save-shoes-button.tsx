@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
-export function SaveShoesButton({ slugs }: { slugs: string[] }) {
+export function SaveShoesButton({ slugs, onSaved }: { slugs: string[]; onSaved?: () => void }) {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [signIn, setSignIn] = useState(false);
@@ -16,6 +16,7 @@ export function SaveShoesButton({ slugs }: { slugs: string[] }) {
       if (response.status === 401) setSignIn(true);
       if (!response.ok) throw new Error(result.error || "Could not save shoes.");
       setMessage(result.added ? "Saved to your shoes." : "These shoes are already saved.");
+      onSaved?.();
     } catch (error) { setMessage(error instanceof Error ? error.message : "Could not connect. Please try again."); }
     finally { setPending(false); }
   }

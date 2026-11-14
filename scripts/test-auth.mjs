@@ -241,6 +241,18 @@ try {
   assert.equal(forbidden.status, 403);
   assert.equal((await request("/get-session", { cookies: aliceCookies })).body.user.id, alice.body.user.id);
   console.log("Passed session ownership and origin checks.");
+  const dashboardRequest = (options = {}) => request("", { ...options, api: "/api/dashboard" });
+  assert.equal((await dashboardRequest()).status, 401);
+  const emptyDashboard = await dashboardRequest({ cookies: aliceCookies });
+  assert.equal(emptyDashboard.status, 200);
+  assert.match(emptyDashboard.cacheControl, /private.*no-store/);
+  assert.deepEqual(emptyDashboard.body.summary, { fittings: 0, models: 0, photos: 0, saved: 0 });
+  assert.equal(emptyDashboard.body.profile, null);
+  assert.equal(emptyDashboard.body.recommendations, null);
+  assert.deepEqual(emptyDashboard.body.saved, []);
+  assert.deepEqual(emptyDashboard.body.recent, []);
+  assert.equal((await fetch(`${baseURL}/dashboard`)).status, 200);
+
   const savedRequest = (options = {}) => request("", { ...options, api: "/api/saved-shoes" });
   const saveBody = { slugs: ["scarpa-drago", "scarpa-helix-mens", "la-sportiva-solution"], userId: bob.body.user.id };
   for (const method of ["GET", "POST", "DELETE"]) assert.equal((await savedRequest({ method, body: method === "GET" ? undefined : saveBody })).status, 401);
@@ -307,6 +319,20 @@ try {
   assert.equal((await profileRequest({ method: "PUT", cookies: aliceCookies, body: answers(), origin: null })).status, 403);
   assert.equal((await profileRequest({ cookies: aliceCookies })).body.profile.width, "WIDE");
   console.log("Passed profile creation, updates, validation, cache headers, origin checks, and account isolation.");
+  const dashboardProfile = await dashboardRequest({ cookies: aliceCookies });
+  assert.equal(dashboardProfile.body.profile.width, "WIDE");
+  assert.ok(dashboardProfile.body.profileUpdatedAt);
+  const profileAnswers = (await profileRequest({ cookies: aliceCookies })).body.values;
+  const referenceRecommendations = await request("", { api: "/api/recommendations", method: "POST", body: answers(profileAnswers) });
+  assert.deepEqual(dashboardProfile.body.recommendations, referenceRecommendations.body);
+  assert.equal((await dashboardRequest({ cookies: bobCookies })).body.profile.width, "REGULAR");
+  const bobAnswers = (await profileRequest({ cookies: bobCookies })).body.values;
+  assert.equal((await profileRequest({ method: "PUT", cookies: bobCookies, body: answers({ footLengthMm: "", streetSizeEu: "", width: "UNKNOWN", toeShape: "UNKNOWN", heelVolume: "UNKNOWN", experience: "UNKNOWN", discipline: "UNKNOWN", fitPreference: "UNKNOWN" }) })).status, 200);
+  assert.equal((await dashboardRequest({ cookies: bobCookies })).body.recommendations.status, "insufficient");
+  assert.equal((await profileRequest({ method: "PUT", cookies: bobCookies, body: answers(bobAnswers) })).status, 200);
+  assert.equal((await dashboardRequest({ cookies: bobCookies })).body.recommendations.status, "empty");
+  assert.ok(!JSON.stringify(dashboardProfile.body).includes('"userId"'));
+
 
   assert.equal((await recordsRequest()).status, 401);
   assert.equal((await recordsRequest({ method: "POST", body: recordAnswers() })).status, 401);
@@ -373,6 +399,35 @@ try {
   const persistedArea = (await recordsRequest({ cookies: aliceCookies })).body.records.find((record) => record.id === firstRecord.body.record.id);
   assert.equal(persistedArea.forefootFit, "COMFORTABLE");
   console.log("Passed area feedback persistence, validation, legacy partial updates and account isolation.");
+  const aliceOverview = (await dashboardRequest({ cookies: aliceCookies })).body;
+  assert.equal(aliceOverview.summary.fittings, 2);
+  assert.equal(aliceOverview.summary.models, 1);
+  assert.equal(aliceOverview.summary.saved, 2);
+  assert.equal(aliceOverview.summary.photos, 0);
+  assert.equal(aliceOverview.recent.length, 2);
+  assert.ok(aliceOverview.recent.every((record) => !Object.hasOwn(record, "notes") && !Object.hasOwn(record, "userId")));
+  const isolatedOverview = await request(`?userId=${alice.body.user.id}`, { api: "/api/dashboard", cookies: bobCookies });
+  assert.equal(isolatedOverview.body.summary.fittings, 1);
+  assert.equal(isolatedOverview.body.summary.saved, 0);
+  assert.ok(isolatedOverview.body.recent.every((record) => record.id === bobRecord.body.record.id));
+  const previewSaved = await savedRequest({ method: "POST", cookies: aliceCookies, body: { slugs: ["scarpa-drago"] } });
+  const extraRecord = await recordsRequest({ method: "POST", cookies: aliceCookies, body: recordAnswers({ shoeId: (await savedRequest({ cookies: aliceCookies })).body.shoes.find((shoe) => shoe.slug === "scarpa-drago").id }) });
+  const extraRecord2 = await recordsRequest({ method: "POST", cookies: aliceCookies, body: recordAnswers({ sizeEu: "42" }) });
+  const capped = (await dashboardRequest({ cookies: aliceCookies })).body;
+  assert.equal(capped.summary.fittings, 4);
+  assert.equal(capped.recent.length, 3);
+  assert.equal(capped.saved.find(({ shoe }) => shoe.slug === "scarpa-drago").fittings, 1);
+  for (const id of [extraRecord.body.record.id, extraRecord2.body.record.id]) assert.equal((await recordsRequest({ method: "DELETE", cookies: aliceCookies, body: { id } })).status, 200);
+  if (previewSaved.body.added) assert.equal((await savedRequest({ method: "DELETE", cookies: aliceCookies, body: { shoeId: capped.saved.find(({ shoe }) => shoe.slug === "scarpa-drago").shoe.id } })).status, 200);
+  const beforeCap = (await savedRequest({ cookies: aliceCookies })).body;
+  const newChoices = beforeCap.shoes.filter((shoe) => !beforeCap.saved.some((item) => item.shoe.id === shoe.id)).slice(0, 7);
+  for (let i = 0; i < newChoices.length; i += 3) assert.equal((await savedRequest({ method: "POST", cookies: aliceCookies, body: { slugs: newChoices.slice(i, i + 3).map((shoe) => shoe.slug) } })).status, 200);
+  const savedCap = (await dashboardRequest({ cookies: aliceCookies })).body;
+  assert.equal(savedCap.summary.saved, beforeCap.saved.length + 7);
+  assert.equal(savedCap.saved.length, 6);
+  for (const shoe of newChoices) assert.equal((await savedRequest({ method: "DELETE", cookies: aliceCookies, body: { shoeId: shoe.id } })).status, 200);
+  console.log("Passed dashboard empty/populated states, profile recommendations, counts, caps and account isolation.");
+
   for (const method of ["PATCH", "DELETE"]) {
     assert.equal((await recordsRequest({ method, cookies: bobCookies, body: recordAnswers({ id: firstRecord.body.record.id }) })).status, 404);
     assert.equal((await recordsRequest({ method, cookies: aliceCookies, body: recordAnswers({ id: "missing-record" }) })).status, 404);
@@ -422,6 +477,8 @@ try {
   assert.equal(objects.size, 1);
   const photoState = (await recordsRequest({ cookies: aliceCookies })).body.records.find((record) => record.id === firstRecord.body.record.id).photo;
   assert.deepEqual(photoState, { recordId: firstRecord.body.record.id });
+  assert.equal((await dashboardRequest({ cookies: aliceCookies })).body.summary.photos, 1);
+  assert.equal((await dashboardRequest({ cookies: bobCookies })).body.summary.photos, 0);
   const viewed = await photoRequest("GET");
   assert.equal(viewed.status, 200);
   assert.equal(viewed.headers.get("content-type"), "image/png");
@@ -470,6 +527,8 @@ try {
   assert.equal((await savedRequest({ cookies: oldAliceCookies })).status, 401);
   assert.equal((await savedRequest({ cookies: aliceCookies })).body.saved.length, 2);
   assert.equal((await savedRequest({ cookies: bobCookies })).status, 401);
+  assert.equal((await dashboardRequest({ cookies: oldAliceCookies })).status, 401);
+  assert.equal((await dashboardRequest({ cookies: bobCookies })).status, 401);
   console.log("Passed sign-out, wrong-password rejection, sign-in, expiry, and restart persistence.");
 
   await stop();
@@ -495,6 +554,7 @@ try {
   assert.equal((await recordsRequest()).status, 503);
   assert.equal((await fetch(`${baseURL}/shoes`)).status, 200);
   assert.equal((await savedRequest()).status, 503);
+  assert.equal((await dashboardRequest()).status, 503);
   console.log("Passed missing-secret handling and public catalogue access.");
 } catch (error) {
   console.error(logs);

@@ -37,7 +37,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
           : result.error.message || "Check your details and try again.");
         return;
       }
-      router.replace("/shoes");
+      router.replace("/dashboard");
       router.refresh();
     } catch {
       setError("Couldn't connect. Please try again.");

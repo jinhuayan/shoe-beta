@@ -2,6 +2,16 @@
 
 A climbing-shoe project built with Next.js, TypeScript, Tailwind CSS, and PostgreSQL. The first feature is a read-only shoe catalogue.
 
+## My climbing overview
+
+`/dashboard` is the signed-in landing page and is linked as **My climbing** in the header. It combines a saved profile, the same rule-based recommendations used by the questionnaire, fitting/model/photo counts, six recent saved shoes, and three recent fittings. Saved shoes show how many fittings exist for that exact shoe ID; this does not imply that it fits. Recommendations use the saved profile only and do not learn from fitting notes.
+
+New accounts get empty states and next-step links to create a profile, browse shoes, find shops and record a fitting. Saving a recommendation shortlist refreshes the overview counts; **Refresh overview** reloads other changes. Existing guest catalogue and questionnaire routes remain available. The profile section is read-only; questionnaire saving remains explicit.
+
+`GET /api/dashboard` verifies the session, ignores request-supplied ownership parameters and applies the session user ID to every private query. Responses are private/no-store. Recent fitting payloads omit notes, area feedback, photo keys and user IDs. Grouped counts avoid fetching the entire fitting journal. Saved-shoe cards are capped at six and recent fittings at three, while summary counts cover the account's full data. The full saved list is loaded for the saved count, then sliced for display; the current catalogue is small. No shared URLs include profile data.
+
+No migration, seed changes or new environment variables are required. Existing credentials and the Vercel connection-pool fix remain in use. Tests cover guest/expired sessions, missing configuration, empty accounts, saved-profile recommendations, caps, private photo counts and cross-account isolation.
+
 ## Private fitting journal
 
 Fit records now include optional toe, forefoot, and heel observations, each using Unsure / Too tight / Comfortable / Too loose. Overall fit remains a separate answer. Existing records default these areas to Unsure; nothing is inferred from notes or overall fit.
@@ -96,7 +106,7 @@ The scripts use Webpack for compatibility with the current development environme
 
 ## Authentication API
 
-[Better Auth](https://better-auth.com/docs/authentication/email-password) handles email/password accounts and database sessions under `/api/auth`. Visitors can register at `/sign-up` or sign in at `/sign-in`; success returns them to the climbing shoe catalogue. The shared header shows the current account and supports sign-out. Registration needs a name, email, and an 8–128 character password. Email verification and password-reset delivery are not configured yet.
+[Better Auth](https://better-auth.com/docs/authentication/email-password) handles email/password accounts and database sessions under `/api/auth`. Visitors can register at `/sign-up` or sign in at `/sign-in`; success returns them to their private My climbing overview. The shared header shows the current account and supports sign-out. Registration needs a name, email, and an 8–128 character password. Email verification and password-reset delivery are not configured yet.
 
 Forms show errors without clearing the entered details, and disable submission while a request is pending. Guests can still browse the catalogue and use the questionnaire. An unavailable account service shows a retry option in the header without blocking guest pages.
 
