@@ -2,6 +2,14 @@
 
 A climbing-shoe project built with Next.js, TypeScript, Tailwind CSS, and PostgreSQL. The first feature is a read-only shoe catalogue.
 
+## Shoe fitting workspace
+
+Every shoe detail page includes a private **Your fitting workspace** section. Signed-in users can see the shoe's saved status and sizing reference from their saved profile, save or remove it from their list, and manage fittings for that exact model. The guest catalogue and manual size calculator remain public. Saved-shoe and dashboard cards link directly to the workspace.
+
+The workspace reuses the fitting journal's create/edit/delete form, photo controls, filters and comparison of up to three records. The shoe is fixed in this form. **Sizes you have tried** groups whole/half EU sizes and counts every reported overall, toe, forefoot and heel observation, including Unsure and conflicting observations. It does not rank sizes or feed records into manufacturer sizing rules. **Use EU size** fills only the new fitting's size while keeping other draft entries; finish or cancel an edit first. Refresh fittings reloads changes from other tabs without clearing a new fitting draft.
+
+`GET /api/fit-records?shoe=SLUG` returns only the current user's records and the one matching shoe. Invalid/repeated scopes return 400 and missing shoes return 404. Requests without a scope keep the full journal response. `GET /api/shoes/SLUG/personal` returns only saved status, a saved-profile size reference and profile update time. Both endpoints check the session, ignore user IDs supplied by the request and return private/no-store responses. Public detail HTML contains no personal records or profile answers. Unsupported sizing rules and missing profiles remain explicit empty states. No migration, dependencies or environment changes are required.
+
 ## Account settings
 
 Open **Account** in the signed-in header, or visit `/account`, to edit your display name, change your password, manage active sessions, and download your data. Password changes require the current password and sign out other sessions while rotating the current session cookie. Session removal supports one other session or all other sessions, with confirmation; use the header's Sign out for the current session. Browser details are device-reported, not verified device identities.
