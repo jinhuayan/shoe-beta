@@ -2,7 +2,8 @@
 
 import { useState, type ReactNode } from "react";
 import { fitLabels, type SavedFitRecord } from "@/lib/fit-records";
-import { emptyJournalFilters, filterFitRecords, selectedFitRecords, summarizeFitRecords, type JournalFilters } from "@/lib/fit-journal";
+import { emptyJournalFilters, filterFitRecords, journalDateError, selectedFitRecords, summarizeFitRecords, type JournalFilters } from "@/lib/fit-journal";
+import { shoeConditionLabels } from "@/lib/fitting-context";
 import { FitRecordComparison } from "@/components/fit-record-comparison";
 
 const controlClass = "w-full min-w-0 rounded-lg border border-stone-300 bg-white p-2";
@@ -13,6 +14,7 @@ export function FitJournal({ records, disabled, singleShoe = false, renderRecord
   const selected = selectedFitRecords(records, selectedIds);
   const visible = filterFitRecords(records, filters);
   const summary = summarizeFitRecords(records);
+  const dateError = journalDateError(filters);
   const shoes = [...new Map(records.map((record) => [record.shoe.id, record.shoe])).values()].sort((a, b) => `${a.brand} ${a.model}`.localeCompare(`${b.brand} ${b.model}`, "en"));
   const change = (name: keyof JournalFilters, value: string) => setFilters((previous) => ({ ...previous, [name]: value }));
   return (
@@ -25,11 +27,16 @@ export function FitJournal({ records, disabled, singleShoe = false, renderRecord
       </dl>
       {!records.length ? <p className="text-stone-600">No fit records yet.</p> : <>
         <div className="grid gap-4 rounded-lg border border-stone-200 p-4 sm:grid-cols-2">
-          <label className="min-w-0 space-y-1 sm:col-span-2"><span className="block text-sm font-medium">Search shoe or notes</span><input type="search" maxLength={100} value={filters.query} onChange={(event) => change("query", event.target.value)} className={controlClass} /></label>
+          <label className="min-w-0 space-y-1 sm:col-span-2"><span className="block text-sm font-medium">Search shoe, location or notes</span><input type="search" maxLength={100} value={filters.query} onChange={(event) => change("query", event.target.value)} className={controlClass} /></label>
           {!singleShoe && <label className="min-w-0 space-y-1"><span className="block text-sm font-medium">Filter by shoe</span><select value={filters.shoeId} onChange={(event) => change("shoeId", event.target.value)} className={controlClass}><option value="">All shoes</option>{shoes.map((shoe) => <option key={shoe.id} value={shoe.id}>{shoe.brand} {shoe.model}</option>)}</select></label>}
           <label className="min-w-0 space-y-1"><span className="block text-sm font-medium">Filter by overall fit</span><select value={filters.fit} onChange={(event) => change("fit", event.target.value)} className={controlClass}><option value="">All fits</option>{Object.entries(fitLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label className="min-w-0 space-y-1"><span className="block text-sm font-medium">Photo filter</span><select value={filters.photo} onChange={(event) => change("photo", event.target.value)} className={controlClass}><option value="">All records</option><option value="with">With photo</option><option value="without">Without photo</option></select></label>
-          <label className="min-w-0 space-y-1"><span className="block text-sm font-medium">Sort records</span><select value={filters.sort} onChange={(event) => change("sort", event.target.value)} className={controlClass}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="rating">Highest rating</option><option value="size">Smallest EU size</option></select></label>
+          <label className="min-w-0 space-y-1"><span className="block text-sm font-medium">Sort records</span><select value={filters.sort} onChange={(event) => change("sort", event.target.value)} className={controlClass}><option value="newest">Recently added</option><option value="oldest">Oldest added</option><option value="tried-newest">Most recently tried</option><option value="tried-oldest">Earliest tried</option><option value="rating">Highest rating</option><option value="size">Smallest EU size</option></select></label>
+          <label className="min-w-0 space-y-1"><span className="block text-sm font-medium">Tried from</span><input type="date" min="1900-01-01" max="2099-12-31" value={filters.dateFrom} onChange={(event) => change("dateFrom", event.target.value)} aria-invalid={!!dateError} aria-describedby={dateError ? "journal-date-error" : undefined} className={controlClass} /></label>
+          <label className="min-w-0 space-y-1"><span className="block text-sm font-medium">Tried through</span><input type="date" min="1900-01-01" max="2099-12-31" value={filters.dateTo} onChange={(event) => change("dateTo", event.target.value)} aria-invalid={!!dateError} aria-describedby={dateError ? "journal-date-error" : undefined} className={controlClass} /></label>
+          <label className="min-w-0 space-y-1"><span className="block text-sm font-medium">Filter by shoe condition</span><select value={filters.condition} onChange={(event) => change("condition", event.target.value)} className={controlClass}><option value="">All conditions</option>{Object.entries(shoeConditionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          {dateError && <p id="journal-date-error" role="alert" className="text-sm text-red-700 sm:col-span-2">{dateError}</p>}
+          {(filters.dateFrom || filters.dateTo) && <p className="text-sm text-stone-500 sm:col-span-2">Date filters use the reported date tried, including both endpoints. Records without a date are excluded.</p>}
           <button type="button" onClick={() => setFilters(emptyJournalFilters)} className={`${linkClass} justify-self-start`}>Clear filters</button>
         </div>
         <p role="status" className="text-sm text-stone-600">Showing {visible.length} of {records.length} records. {selected.length} of 3 selected for comparison.</p>

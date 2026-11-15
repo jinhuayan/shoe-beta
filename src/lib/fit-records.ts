@@ -1,11 +1,13 @@
+import { validateFittingContext, type FittingContext } from "./fitting-context";
+
 export const fitLabels = { UNKNOWN: "Unsure", TIGHT: "Too tight", COMFORTABLE: "Comfortable", LOOSE: "Too loose" };
 
 export const fitAreaLabels = { toeFit: "Toe fit", forefootFit: "Forefoot fit", heelFit: "Heel fit" };
 export type FitArea = keyof typeof fitAreaLabels;
 
-export type FitRecordErrors = Partial<Record<"shoeId" | "sizeEu" | "fit" | "rating" | "notes" | FitArea, string>>;
+export type FitRecordErrors = Partial<Record<"shoeId" | "sizeEu" | "fit" | "rating" | "notes" | FitArea | keyof FittingContext, string>>;
 export type RecordShoe = { id: string; slug: string; brand: string; model: string; isSample: boolean };
-export type SavedFitRecord = {
+export type SavedFitRecord = FittingContext & {
   photo: { recordId: string } | null;
   id: string;
   shoe: RecordShoe;
@@ -30,6 +32,8 @@ export function validateFitRecord(body: unknown) {
   const rating = read("rating");
   const notes = read("notes");
   const errors: FitRecordErrors = {};
+  const context = validateFittingContext(input);
+  Object.assign(errors, context.errors);
 
   if (!shoeId || shoeId.length > 100) errors.shoeId = "Choose a climbing shoe.";
   if (!/^\d+(\.\d+)?$/.test(size) || sizeEu < 20 || sizeEu > 55 || !Number.isInteger(sizeEu * 2)) {
@@ -52,7 +56,7 @@ export function validateFitRecord(body: unknown) {
   return {
     errors,
     data: Object.keys(errors).length ? null : {
-      ...areas, shoeId, sizeEu, fit: fit as keyof typeof fitLabels, rating: rating ? Number(rating) : null, notes,
+      ...areas, ...context.data, shoeId, sizeEu, fit: fit as keyof typeof fitLabels, rating: rating ? Number(rating) : null, notes,
     },
   };
 }

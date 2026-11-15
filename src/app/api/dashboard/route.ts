@@ -1,3 +1,4 @@
+import { serializeFittingDate } from "@/lib/fitting-context";
 import { getAuth } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { choiceFields, measurementFields, validateQuestionnaire, type QuestionnaireField } from "@/lib/questionnaire";
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
     const [savedProfile, groups, recent, photos, saved] = await Promise.all([
       db.climbingProfile.findUnique({ where: { userId } }),
       db.fitRecord.groupBy({ by: ["shoeId"], where: { userId }, _count: { id: true } }),
-      db.fitRecord.findMany({ where: { userId }, take: 3, orderBy: [{ createdAt: "desc" }, { id: "desc" }], select: { id: true, sizeEu: true, fit: true, rating: true, createdAt: true, shoe: { select: shoeSelect } } }),
+      db.fitRecord.findMany({ where: { userId }, take: 3, orderBy: [{ createdAt: "desc" }, { id: "desc" }], select: { id: true, sizeEu: true, fit: true, rating: true, triedOn: true, location: true, createdAt: true, shoe: { select: shoeSelect } } }),
       db.fitPhoto.count({ where: { record: { userId } } }),
       db.savedShoe.findMany({ where: { userId }, orderBy: [{ createdAt: "desc" }, { shoeId: "asc" }], select: { shoe: { select: shoeSelect } } }),
     ]);
@@ -31,7 +32,7 @@ export async function GET(request: Request) {
     return Response.json({
       profile, profileUpdatedAt: profile ? savedProfile!.updatedAt : null,
       summary: { fittings: groups.reduce((sum, group) => sum + group._count.id, 0), models: groups.length, photos, saved: saved.length },
-      recent,
+      recent: recent.map((record) => ({ ...record, triedOn: serializeFittingDate(record.triedOn) })),
       saved: savedShoeProgress(saved.slice(0, 6).map(({ shoe }) => shoe), groups.map((group) => ({ shoeId: group.shoeId, count: group._count.id }))),
       recommendations,
     }, { headers });

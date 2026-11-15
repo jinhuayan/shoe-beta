@@ -1,3 +1,4 @@
+import { serializeFittingDate } from "@/lib/fitting-context";
 import { getAuth } from "@/lib/auth";
 import { Prisma } from "@/generated/prisma/client";
 import { getDb } from "@/lib/db";
@@ -6,7 +7,7 @@ import { readShoeScope } from "@/lib/shoe-fittings";
 
 const headers = { "Cache-Control": "private, no-store" };
 const shoeSelect = { id: true, slug: true, brand: true, model: true, isSample: true } as const;
-const recordSelect = { photo: { select: { recordId: true } }, id: true, sizeEu: true, fit: true, toeFit: true, forefootFit: true, heelFit: true, rating: true, notes: true, createdAt: true, shoe: { select: shoeSelect } } as const;
+const recordSelect = { photo: { select: { recordId: true } }, id: true, sizeEu: true, fit: true, toeFit: true, forefootFit: true, heelFit: true, rating: true, notes: true, triedOn: true, location: true, shoeCondition: true, durationMinutes: true, createdAt: true, shoe: { select: shoeSelect } } as const;
 
 async function handleRecords(request: Request) {
   try {
@@ -25,7 +26,7 @@ async function handleRecords(request: Request) {
         db.fitRecord.findMany({ where: { userId, ...(selected ? { shoeId: selected.id } : {}) }, select: recordSelect, orderBy: [{ createdAt: "desc" }, { id: "desc" }] }),
         selected ? Promise.resolve([selected]) : db.shoe.findMany({ select: shoeSelect, orderBy: [{ brand: "asc" }, { model: "asc" }, { slug: "asc" }] }),
       ]);
-      return Response.json({ records, shoes }, { headers });
+      return Response.json({ records: records.map((record) => ({ ...record, triedOn: serializeFittingDate(record.triedOn) })), shoes }, { headers });
     }
 
     if (request.headers.get("origin") !== auth.options.baseURL) {
@@ -57,10 +58,10 @@ async function handleRecords(request: Request) {
     }
     if (request.method === "PATCH") {
       const record = await db.fitRecord.update({ where: { id: id as string, userId }, data, select: recordSelect });
-      return Response.json({ record }, { headers });
+      return Response.json({ record: { ...record, triedOn: serializeFittingDate(record.triedOn) } }, { headers });
     }
     const record = await db.fitRecord.create({ data: { userId, ...data }, select: recordSelect });
-    return Response.json({ record }, { status: 201, headers });
+    return Response.json({ record: { ...record, triedOn: serializeFittingDate(record.triedOn) } }, { status: 201, headers });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025" && request.method === "PATCH") {
       return Response.json({ error: "Fit record not found." }, { status: 404, headers });

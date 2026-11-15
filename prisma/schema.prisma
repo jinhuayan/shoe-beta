@@ -78,6 +78,12 @@ enum OverallFit {
   UNKNOWN
 }
 
+enum ShoeCondition {
+  UNKNOWN
+  NEW
+  BROKEN_IN
+}
+
 model Shoe {
   id              String      @id @default(cuid())
   slug            String      @unique
@@ -114,21 +120,25 @@ model User {
 }
 
 model FitRecord {
-  photo       FitPhoto?
-  id          String     @id @default(cuid())
-  userId      String
-  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  shoeId      String
-  shoe        Shoe       @relation(fields: [shoeId], references: [id], onDelete: Restrict)
-  sizeEu      Float
-  fit         OverallFit @default(UNKNOWN)
-  toeFit      OverallFit @default(UNKNOWN)
-  forefootFit OverallFit @default(UNKNOWN)
-  heelFit     OverallFit @default(UNKNOWN)
-  rating      Int?
-  notes       String     @default("")
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  photo           FitPhoto?
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shoeId          String
+  shoe            Shoe          @relation(fields: [shoeId], references: [id], onDelete: Restrict)
+  sizeEu          Float
+  fit             OverallFit    @default(UNKNOWN)
+  toeFit          OverallFit    @default(UNKNOWN)
+  forefootFit     OverallFit    @default(UNKNOWN)
+  heelFit         OverallFit    @default(UNKNOWN)
+  rating          Int?
+  notes           String        @default("")
+  triedOn         DateTime?     @db.Date
+  location        String        @default("")
+  shoeCondition   ShoeCondition @default(UNKNOWN)
+  durationMinutes Int?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   @@index([userId, createdAt])
   @@index([shoeId])

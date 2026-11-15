@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
 import { once } from "node:events";
-import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -23,7 +23,7 @@ assert.ok(["postgres:", "postgresql:"].includes(database.protocol)
   && ["localhost", "127.0.0.1", "[::1]"].includes(database.hostname)
   && database.pathname === "/shoe_beta_auth_test", "Auth tests require a local shoe_beta_auth_test database.");
 
-const env = { ...process.env, DATABASE_URL: testURL, NODE_ENV: "production", NEXT_TELEMETRY_DISABLED: "1" };
+const env = { ...process.env, DATABASE_URL: testURL, NODE_ENV: "production", NEXT_TELEMETRY_DISABLED: "1", TZ: "Pacific/Honolulu" };
 for (const name of ["DOTENV_CONFIG_PATH", "DATABASE_URL_POOLED", "BETTER_AUTH_SECRET", "BETTER_AUTH_SECRETS", "BETTER_AUTH_URL", "VERCEL_URL"]) delete env[name];
 const pool = new pg.Pool({ connectionString: testURL, max: 1, connectionTimeoutMillis: 3000 });
 const objects = new Map();
@@ -136,6 +136,27 @@ try {
   await symlink(join(project, ".next"), join(runtime, ".next"), "dir");
   await symlink(join(project, "node_modules"), join(runtime, "node_modules"), "dir");
   await writeFile(join(runtime, "package.json"), JSON.stringify({ name: "shoe-beta-auth-test", private: true }));
+  const migration = "20261115000000_fitting_session_details";
+  const upgrade = await pool.connect();
+  try {
+    const schema = `fitting_upgrade_${randomUUID().replaceAll("-", "")}`;
+    await upgrade.query("BEGIN");
+    await upgrade.query(`CREATE SCHEMA "${schema}"`);
+    await upgrade.query(`SET LOCAL search_path TO "${schema}"`);
+    for (const name of (await readdir(join(project, "prisma/migrations"))).filter((name) => name < migration && !name.endsWith(".toml")).sort()) await upgrade.query(await readFile(join(project, "prisma/migrations", name, "migration.sql"), "utf8"));
+    await upgrade.query('INSERT INTO "user" (id, name, email, "updatedAt") VALUES (\'legacy\', \'Legacy\', \'legacy@example.test\', NOW())');
+    await upgrade.query('INSERT INTO "Shoe" (id, slug, brand, model) VALUES (\'legacy-shoe\', \'legacy-shoe\', \'Test\', \'Legacy\')');
+    await upgrade.query('INSERT INTO "FitRecord" (id, "userId", "shoeId", "sizeEu", fit, "toeFit", notes, "updatedAt") VALUES (\'legacy-fit\', \'legacy\', \'legacy-shoe\', 40.5, \'COMFORTABLE\', \'TIGHT\', \'Keep this note\', NOW())');
+    const before = (await upgrade.query('SELECT * FROM "FitRecord"')).rows[0];
+    await upgrade.query(await readFile(join(project, "prisma/migrations", migration, "migration.sql"), "utf8"));
+    const after = (await upgrade.query('SELECT * FROM "FitRecord"')).rows[0];
+    assert.deepEqual(Object.fromEntries(Object.keys(before).map((key) => [key, after[key]])), before);
+    assert.equal(after.triedOn, null);
+    assert.equal(after.location, "");
+    assert.equal(after.shoeCondition, "UNKNOWN");
+    assert.equal(after.durationMinutes, null);
+    console.log("Passed fitting-context migration on existing records without inventing dates or altering observations.");
+  } finally { await upgrade.query("ROLLBACK"); upgrade.release(); }
   const existing = await pool.query("SELECT to_regclass('public.\"Shoe\"') AS name");
   const shoesBefore = existing.rows[0].name ? (await pool.query('SELECT * FROM "Shoe" ORDER BY id')).rows : null;
   execFileSync("npm", ["run", "db:deploy"], { cwd: project, env, stdio: "inherit" });
@@ -438,6 +459,36 @@ try {
   assert.equal(edited.body.record.heelFit, "LOOSE");
   const persistedArea = (await recordsRequest({ cookies: aliceCookies })).body.records.find((record) => record.id === firstRecord.body.record.id);
   assert.equal(persistedArea.forefootFit, "COMFORTABLE");
+  const contextFields = ["triedOn", "location", "shoeCondition", "durationMinutes"];
+  const contextOf = (record) => Object.fromEntries(contextFields.map((key) => [key, record[key]]));
+  assert.deepEqual(contextOf(persistedArea), { triedOn: null, location: "", shoeCondition: "UNKNOWN", durationMinutes: null });
+  const sessionDetails = { triedOn: "2024-02-29", location: "Demo gym 王", shoeCondition: "BROKEN_IN", durationMinutes: "90" };
+  const expectedContext = { ...sessionDetails, durationMinutes: 90 };
+  const contextUpdate = await recordsRequest({ method: "PATCH", cookies: aliceCookies, body: recordAnswers({ id: firstRecord.body.record.id, sizeEu: "41.5", rating: "", notes: "Updated fitting", ...sessionDetails }) });
+  assert.equal(contextUpdate.status, 200);
+  assert.deepEqual(contextOf(contextUpdate.body.record), expectedContext);
+  const preservedContext = await recordsRequest({ method: "PATCH", cookies: aliceCookies, body: recordAnswers({ id: firstRecord.body.record.id, sizeEu: "41.5", rating: "", notes: "Updated fitting" }) });
+  assert.deepEqual(contextOf(preservedContext.body.record), expectedContext);
+  const contextErrors = [{ triedOn: "2026-02-29" }, { triedOn: "2026-04-31" }, { triedOn: "2026-11-14T00:00:00Z" }, { triedOn: null }, { location: "x".repeat(121) }, { location: null }, { shoeCondition: "USED" }, { shoeCondition: null }, { durationMinutes: "1.5" }, { durationMinutes: "0" }, { durationMinutes: "1441" }, { durationMinutes: 90 }];
+  for (const invalid of contextErrors) {
+    const rejected = await recordsRequest({ method: "PATCH", cookies: aliceCookies, body: recordAnswers({ id: firstRecord.body.record.id, ...invalid }) });
+    assert.equal(rejected.status, 400);
+    assert.ok(rejected.body.errors[Object.keys(invalid)[0]]);
+  }
+  assert.deepEqual(contextOf((await recordsRequest({ cookies: aliceCookies })).body.records.find(({ id }) => id === firstRecord.body.record.id)), expectedContext);
+  assert.equal((await recordsRequest({ method: "PATCH", cookies: bobCookies, body: recordAnswers({ id: firstRecord.body.record.id, ...sessionDetails }) })).status, 404);
+  assert.deepEqual(contextOf((await recordsRequest({ cookies: bobCookies })).body.records[0]), { triedOn: null, location: "", shoeCondition: "UNKNOWN", durationMinutes: null });
+  const withContext = await recordsRequest({ method: "POST", cookies: aliceCookies, body: recordAnswers({ ...sessionDetails, durationMinutes: "1440" }) });
+  assert.equal(withContext.status, 201);
+  assert.equal(withContext.body.record.durationMinutes, 1440);
+  const cleared = await recordsRequest({ method: "PATCH", cookies: aliceCookies, body: recordAnswers({ id: withContext.body.record.id, triedOn: "", location: "", shoeCondition: "UNKNOWN", durationMinutes: "" }) });
+  assert.deepEqual(contextOf(cleared.body.record), { triedOn: null, location: "", shoeCondition: "UNKNOWN", durationMinutes: null });
+  await recordsRequest({ method: "DELETE", cookies: aliceCookies, body: { id: withContext.body.record.id } });
+  assert.deepEqual(contextOf((await scopedRecords(fitShoeId, { cookies: aliceCookies })).body.records.find(({ id }) => id === firstRecord.body.record.id)), expectedContext);
+  const contextRecent = (await dashboardRequest({ cookies: aliceCookies })).body.recent.find(({ id }) => id === firstRecord.body.record.id);
+  assert.equal(contextRecent.triedOn, "2024-02-29");
+  assert.equal(contextRecent.location, "Demo gym 王");
+  console.log("Passed fitting context creation, clearing, partial-update compatibility, validation, date serialization and ownership.");
   console.log("Passed area feedback persistence, validation, legacy partial updates and account isolation.");
   const aliceOverview = (await dashboardRequest({ cookies: aliceCookies })).body;
   assert.equal(aliceOverview.summary.fittings, 2);
@@ -617,6 +668,7 @@ try {
   assert.equal(backup.body.fitRecords.length, 2);
   assert.equal(backup.body.fitRecords[0].notes, "Updated fitting");
   assert.equal(backup.body.fitRecords[0].toeFit, "TIGHT");
+  assert.deepEqual(contextOf(backup.body.fitRecords[0]), expectedContext);
   assert.ok(backup.body.fitRecords.every((record) => !record.photoAttached));
   const backupText = JSON.stringify(backup.body);
   for (const forbidden of ["userId", "objectKey", "password", "token", emails[1], bob.body.user.id, "Bob's own fitting"]) assert.ok(!backupText.includes(forbidden));
@@ -674,6 +726,7 @@ try {
   assert.equal((await request("/get-session", { cookies: aliceCookies })).body.user.id, alice.body.user.id);
   assert.equal((await profileRequest({ cookies: aliceCookies })).body.profile.width, "WIDE");
   assert.equal((await recordsRequest({ cookies: aliceCookies })).body.records.length, 2);
+  assert.deepEqual(contextOf((await recordsRequest({ cookies: aliceCookies })).body.records.find(({ id }) => id === firstRecord.body.record.id)), expectedContext);
   await pool.query('UPDATE "session" SET "expiresAt" = NOW() - INTERVAL \'1 hour\' WHERE id = $1', [bobSession.session.id]);
   assert.deepEqual((await request("/get-session", { cookies: bobCookies })).body, null);
   assert.equal((await profileRequest({ cookies: bobCookies })).status, 401);

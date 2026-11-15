@@ -2,6 +2,22 @@
 
 A climbing-shoe project built with Next.js, TypeScript, Tailwind CSS, and PostgreSQL. The first feature is a read-only shoe catalogue.
 
+## Fitting dates and context
+
+Fitting forms now include optional date tried, a manually entered location (up to 120 characters), shoe condition (new/not broken in, already broken in, or not recorded), and time worn (1–1,440 whole minutes). These details appear in the full journal, shoe workspace, private record comparisons and account JSON export. Dashboard cards show the reported fitting date and location; its recent list still means recently added records.
+
+Dates are calendar dates stored as PostgreSQL `DATE` and returned as `YYYY-MM-DD`, with valid dates from 1900–2099. An omitted date remains unknown rather than borrowing the record's creation date. Date filters include both endpoints and exclude undated records; tried-date sorting puts undated entries last in both directions. Search now includes location, and condition filters combine with the existing journal controls. Filters remain private page state. Locations are entered by the user; Google Places results are not saved into records.
+
+Before deploying this version, apply the additive migration using the target database's direct connection:
+
+```bash
+DOTENV_CONFIG_PATH=.env.local npm run db:deploy
+```
+
+Installation/builds regenerate Prisma Client automatically. Restart local development after migrating. The migration preserves existing records with null dates/durations, empty locations and UNKNOWN condition. POST/PATCH accept optional string fields `triedOn`, `location`, `shoeCondition` and `durationMinutes`; omitting them on PATCH preserves values, while blank date/location/duration and explicit UNKNOWN clear them. Existing session, ownership, Origin and photo protections remain in place. No new dependencies or environment variables are needed.
+
+Tests cover upgrading existing records, leap dates, validation boundaries, partial updates, date-only serialization in a different server timezone, private exports, cross-account rejection, filters and sorting. These observations do not affect shoe rankings or manufacturer size references.
+
 ## Shoe fitting workspace
 
 Every shoe detail page includes a private **Your fitting workspace** section. Signed-in users can see the shoe's saved status and sizing reference from their saved profile, save or remove it from their list, and manage fittings for that exact model. The guest catalogue and manual size calculator remain public. Saved-shoe and dashboard cards link directly to the workspace.

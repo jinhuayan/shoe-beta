@@ -4,6 +4,8 @@ import Link from "next/link";
 import { FitJournal } from "@/components/fit-journal";
 import { FitPhotoControls } from "@/components/fit-photo-controls";
 import { ShoeSizeHistory } from "@/components/shoe-size-history";
+import { FittingContextDetails } from "@/components/fitting-context-details";
+import { shoeConditionLabels } from "@/lib/fitting-context";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { authClient } from "@/lib/auth-client";
 import { fitAreaLabels, fitLabels, type FitArea, type FitRecordErrors, type FitRecordList, type SavedFitRecord, type RecordShoe } from "@/lib/fit-records";
@@ -159,6 +161,30 @@ function RecordList({ initialShoeSlug, shoe, onSessionExpired }: { initialShoeSl
               </select>
               {fieldError("rating")}
             </div>
+            <fieldset className="grid gap-4 rounded-lg border border-stone-200 p-3 sm:col-span-2 sm:grid-cols-2">
+              <legend className="px-1 text-sm font-medium">About this fitting (optional)</legend>
+              <p className="text-sm text-stone-500 sm:col-span-2">Record what you remember. A shop or gym name is enough; leave missing details blank.</p>
+              <div className="min-w-0 space-y-2">
+                <label htmlFor="triedOn" className="block text-sm font-medium">Date tried (optional)</label>
+                <input id="triedOn" name="triedOn" type="date" min="1900-01-01" max="2099-12-31" defaultValue={editing?.triedOn ?? ""} {...fieldProps("triedOn")} />
+                {fieldError("triedOn")}
+              </div>
+              <div className="min-w-0 space-y-2">
+                <label htmlFor="location" className="block text-sm font-medium">Location (optional)</label>
+                <input id="location" name="location" type="text" autoComplete="off" maxLength={120} defaultValue={editing?.location ?? ""} {...fieldProps("location")} />
+                {fieldError("location")}
+              </div>
+              <div className="min-w-0 space-y-2">
+                <label htmlFor="shoeCondition" className="block text-sm font-medium">Shoe condition (optional)</label>
+                <select id="shoeCondition" name="shoeCondition" defaultValue={editing?.shoeCondition ?? "UNKNOWN"} {...fieldProps("shoeCondition")}>{Object.entries(shoeConditionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+                {fieldError("shoeCondition")}
+              </div>
+              <div className="min-w-0 space-y-2">
+                <label htmlFor="durationMinutes" className="block text-sm font-medium">Time worn in minutes (optional)</label>
+                <input id="durationMinutes" name="durationMinutes" type="number" min={1} max={1440} step={1} defaultValue={editing?.durationMinutes ?? ""} {...fieldProps("durationMinutes")} />
+                {fieldError("durationMinutes")}
+              </div>
+            </fieldset>
             <div className="space-y-2 sm:col-span-2">
               <label htmlFor="notes" className="block text-sm font-medium">Notes (optional)</label>
               <textarea id="notes" name="notes" rows={3} maxLength={1000} defaultValue={editing?.notes ?? ""} {...fieldProps("notes")} />
@@ -185,6 +211,7 @@ function RecordList({ initialShoeSlug, shoe, onSessionExpired }: { initialShoeSl
             {Object.entries(fitAreaLabels).map(([name, label]) => <div key={name}><dt className="text-sm text-stone-500">{label}</dt><dd>{fitLabels[record[name as FitArea]]}</dd></div>)}
           </dl>
           {record.notes && <p className="whitespace-pre-wrap break-words text-stone-600">{record.notes}</p>}
+          <FittingContextDetails record={record} />
           <p className="text-sm text-stone-500">Added <time dateTime={record.createdAt}>{new Date(record.createdAt).toLocaleDateString("en-CA")}</time></p>
           <FitPhotoControls recordId={record.id} hasPhoto={!!record.photo} disabled={saving || loading} onSessionExpired={onSessionExpired} onChange={(hasPhoto) => setData((previous) => previous ? { ...previous, records: previous.records.map((item) => item.id === record.id ? { ...item, photo: hasPhoto ? { recordId: record.id } : null } : item) } : previous)} />
           <div className="flex flex-wrap items-center gap-4">

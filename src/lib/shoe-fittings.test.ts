@@ -4,7 +4,7 @@ import type { SavedFitRecord } from "./fit-records";
 import { groupShoeFittings, readShoeScope } from "./shoe-fittings";
 
 const shoe = { id: "drago", slug: "scarpa-drago", brand: "SCARPA", model: "Drago", isSample: false };
-const base: SavedFitRecord = { id: "one", shoe, sizeEu: 40, fit: "TIGHT", toeFit: "TIGHT", forefootFit: "UNKNOWN", heelFit: "COMFORTABLE", notes: "Personal observation", rating: 5, photo: null, createdAt: "2026-11-14T12:00:00Z" };
+const base: SavedFitRecord = { triedOn: null, location: "", shoeCondition: "UNKNOWN", durationMinutes: null, id: "one", shoe, sizeEu: 40, fit: "TIGHT", toeFit: "TIGHT", forefootFit: "UNKNOWN", heelFit: "COMFORTABLE", notes: "Personal observation", rating: 5, photo: null, createdAt: "2026-11-14T12:00:00Z" };
 
 test("shoe scope accepts one explicit slug and rejects ambiguous or blank queries", () => {
   assert.deepEqual(readShoeScope(new URLSearchParams()), { valid: true, slug: null });
