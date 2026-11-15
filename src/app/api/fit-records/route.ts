@@ -2,6 +2,7 @@ import { getAuth } from "@/lib/auth";
 import { Prisma } from "@/generated/prisma/client";
 import { getDb } from "@/lib/db";
 import { validateFitRecord } from "@/lib/fit-records";
+import { readShoeScope } from "@/lib/shoe-fittings";
 
 const headers = { "Cache-Control": "private, no-store" };
 const shoeSelect = { id: true, slug: true, brand: true, model: true, isSample: true } as const;
@@ -16,9 +17,13 @@ async function handleRecords(request: Request) {
     const db = getDb();
 
     if (request.method === "GET") {
+      const scope = readShoeScope(new URL(request.url).searchParams);
+      if (!scope.valid) return Response.json({ error: "Choose one climbing shoe." }, { status: 400, headers });
+      const selected = scope.slug ? await db.shoe.findUnique({ where: { slug: scope.slug }, select: shoeSelect }) : null;
+      if (scope.slug && !selected) return Response.json({ error: "Climbing shoe not found." }, { status: 404, headers });
       const [records, shoes] = await Promise.all([
-        db.fitRecord.findMany({ where: { userId }, select: recordSelect, orderBy: [{ createdAt: "desc" }, { id: "desc" }] }),
-        db.shoe.findMany({ select: shoeSelect, orderBy: [{ brand: "asc" }, { model: "asc" }, { slug: "asc" }] }),
+        db.fitRecord.findMany({ where: { userId, ...(selected ? { shoeId: selected.id } : {}) }, select: recordSelect, orderBy: [{ createdAt: "desc" }, { id: "desc" }] }),
+        selected ? Promise.resolve([selected]) : db.shoe.findMany({ select: shoeSelect, orderBy: [{ brand: "asc" }, { model: "asc" }, { slug: "asc" }] }),
       ]);
       return Response.json({ records, shoes }, { headers });
     }

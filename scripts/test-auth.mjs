@@ -248,6 +248,22 @@ try {
   assert.equal(forbidden.status, 403);
   assert.equal((await request("/get-session", { cookies: aliceCookies })).body.user.id, alice.body.user.id);
   console.log("Passed session ownership and origin checks.");
+  const personalShoe = (slug, options = {}) => request("", { ...options, api: `/api/shoes/${encodeURIComponent(slug)}/personal` });
+  const scopedRecords = (slug, options = {}) => request(`?shoe=${encodeURIComponent(slug)}`, { ...options, api: "/api/fit-records" });
+  for (const call of [() => personalShoe("scarpa-helix-mens"), () => scopedRecords("scarpa-helix-mens")]) {
+    const guest = await call();
+    assert.equal(guest.status, 401);
+    assert.match(guest.cacheControl, /private.*no-store/);
+  }
+  const emptyPersonal = await personalShoe("scarpa-helix-mens", { cookies: aliceCookies });
+  assert.equal(emptyPersonal.status, 200);
+  assert.deepEqual(emptyPersonal.body, { saved: false, reference: null, profileUpdatedAt: null });
+  const emptyScoped = await scopedRecords("scarpa-helix-mens", { cookies: aliceCookies });
+  assert.equal(emptyScoped.status, 200);
+  assert.deepEqual(emptyScoped.body.records, []);
+  assert.deepEqual(emptyScoped.body.shoes.map((shoe) => shoe.slug), ["scarpa-helix-mens"]);
+  for (const suffix of ["?shoe=", "?shoe=a&shoe=b", `?shoe=${"a".repeat(101)}`]) assert.equal((await request(suffix, { cookies: aliceCookies, api: "/api/fit-records" })).status, 400);
+  for (const call of [personalShoe, scopedRecords]) assert.equal((await call("missing-shoe", { cookies: aliceCookies })).status, 404);
   const dashboardRequest = (options = {}) => request("", { ...options, api: "/api/dashboard" });
   assert.equal((await dashboardRequest()).status, 401);
   const emptyDashboard = await dashboardRequest({ cookies: aliceCookies });
@@ -326,6 +342,23 @@ try {
   assert.equal((await profileRequest({ method: "PUT", cookies: aliceCookies, body: answers(), origin: null })).status, 403);
   assert.equal((await profileRequest({ cookies: aliceCookies })).body.profile.width, "WIDE");
   console.log("Passed profile creation, updates, validation, cache headers, origin checks, and account isolation.");
+  const helixPersonal = await personalShoe("scarpa-helix-mens", { cookies: aliceCookies });
+  assert.equal(helixPersonal.status, 200);
+  assert.match(helixPersonal.cacheControl, /private.*no-store/);
+  assert.equal(helixPersonal.body.saved, true);
+  assert.equal(helixPersonal.body.reference.status, "available");
+  assert.deepEqual(helixPersonal.body.reference.sizes, [39.5]);
+  assert.ok(helixPersonal.body.profileUpdatedAt);
+  assert.deepEqual(Object.keys(helixPersonal.body).sort(), ["profileUpdatedAt", "reference", "saved"]);
+  const bobPersonal = await request(`?userId=${alice.body.user.id}`, { cookies: bobCookies, api: "/api/shoes/scarpa-helix-mens/personal" });
+  assert.equal(bobPersonal.body.saved, false);
+  assert.equal(bobPersonal.body.reference.status, "unavailable");
+  assert.deepEqual(bobPersonal.body.reference.sizes, []);
+  assert.equal((await personalShoe(fitShoeId, { cookies: aliceCookies })).body.reference.status, "unavailable");
+  assert.equal((await personalShoe("la-sportiva-solution", { cookies: aliceCookies })).body.reference.status, "unavailable");
+  await profileRequest({ method: "PUT", cookies: aliceCookies, body: answers({ width: "WIDE", streetSizeEu: "40" }) });
+  assert.deepEqual((await personalShoe("scarpa-helix-mens", { cookies: aliceCookies })).body.reference.sizes, [40]);
+  await profileRequest({ method: "PUT", cookies: aliceCookies, body: answers({ width: "WIDE" }) });
   const dashboardProfile = await dashboardRequest({ cookies: aliceCookies });
   assert.equal(dashboardProfile.body.profile.width, "WIDE");
   assert.ok(dashboardProfile.body.profileUpdatedAt);
@@ -420,11 +453,29 @@ try {
   const previewSaved = await savedRequest({ method: "POST", cookies: aliceCookies, body: { slugs: ["scarpa-drago"] } });
   const extraRecord = await recordsRequest({ method: "POST", cookies: aliceCookies, body: recordAnswers({ shoeId: (await savedRequest({ cookies: aliceCookies })).body.shoes.find((shoe) => shoe.slug === "scarpa-drago").id }) });
   const extraRecord2 = await recordsRequest({ method: "POST", cookies: aliceCookies, body: recordAnswers({ sizeEu: "42" }) });
+  const dragoScoped = await scopedRecords("scarpa-drago", { cookies: aliceCookies });
+  assert.equal(dragoScoped.status, 200);
+  assert.match(dragoScoped.cacheControl, /private.*no-store/);
+  assert.deepEqual(dragoScoped.body.records.map((record) => record.id), [extraRecord.body.record.id]);
+  assert.deepEqual(dragoScoped.body.shoes.map((shoe) => shoe.slug), ["scarpa-drago"]);
+  const sampleScoped = await scopedRecords(fitShoeId, { cookies: aliceCookies });
+  assert.equal(sampleScoped.body.records.length, 3);
+  assert.ok(sampleScoped.body.records.every((record) => record.shoe.id === fitShoeId));
+  assert.ok(sampleScoped.body.records.some((record) => record.id === firstRecord.body.record.id && record.sizeEu === 41.5 && record.toeFit === "TIGHT"));
+  const bobScoped = await request(`?shoe=${fitShoeId}&userId=${alice.body.user.id}`, { cookies: bobCookies, api: "/api/fit-records" });
+  assert.deepEqual(bobScoped.body.records.map((record) => record.id), [bobRecord.body.record.id]);
+  assert.deepEqual((await scopedRecords("scarpa-drago", { cookies: bobCookies })).body.records, []);
+  const publicDetail = await (await fetch(`${baseURL}/shoes/scarpa-drago`, { headers: { Cookie: [...aliceCookies.values()].join("; ") } })).text();
+  assert.ok(publicDetail.includes("Your fitting workspace"));
+  assert.ok(!publicDetail.includes(alice.body.user.id) && !publicDetail.includes("Updated fitting"));
+  assert.equal((await personalShoe("scarpa-drago", { cookies: aliceCookies })).body.saved, true);
   const capped = (await dashboardRequest({ cookies: aliceCookies })).body;
   assert.equal(capped.summary.fittings, 4);
   assert.equal(capped.recent.length, 3);
   assert.equal(capped.saved.find(({ shoe }) => shoe.slug === "scarpa-drago").fittings, 1);
   for (const id of [extraRecord.body.record.id, extraRecord2.body.record.id]) assert.equal((await recordsRequest({ method: "DELETE", cookies: aliceCookies, body: { id } })).status, 200);
+  assert.deepEqual((await scopedRecords("scarpa-drago", { cookies: aliceCookies })).body.records, []);
+  console.log("Passed private shoe workspace, exact-model scopes, saved-profile references, missing data and refreshed edits/deletes.");
   if (previewSaved.body.added) assert.equal((await savedRequest({ method: "DELETE", cookies: aliceCookies, body: { shoeId: capped.saved.find(({ shoe }) => shoe.slug === "scarpa-drago").shoe.id } })).status, 200);
   const beforeCap = (await savedRequest({ cookies: aliceCookies })).body;
   const newChoices = beforeCap.shoes.filter((shoe) => !beforeCap.saved.some((item) => item.shoe.id === shoe.id)).slice(0, 7);
@@ -484,6 +535,8 @@ try {
   assert.equal(objects.size, 1);
   const photoState = (await recordsRequest({ cookies: aliceCookies })).body.records.find((record) => record.id === firstRecord.body.record.id).photo;
   assert.deepEqual(photoState, { recordId: firstRecord.body.record.id });
+  const scopedPhoto = await scopedRecords(fitShoeId, { cookies: aliceCookies });
+  assert.deepEqual(scopedPhoto.body.records.find((record) => record.id === firstRecord.body.record.id).photo, photoState);
   assert.equal((await dashboardRequest({ cookies: aliceCookies })).body.summary.photos, 1);
   assert.equal((await dashboardRequest({ cookies: bobCookies })).body.summary.photos, 0);
   const photoExport = await request("", { api: "/api/account/export", cookies: aliceCookies });
@@ -634,6 +687,8 @@ try {
   assert.equal((await dashboardRequest({ cookies: oldAliceCookies })).status, 401);
   assert.equal((await dashboardRequest({ cookies: bobCookies })).status, 401);
   for (const cookies of [oldAliceCookies, bobCookies]) {
+    assert.equal((await personalShoe("scarpa-helix-mens", { cookies })).status, 401);
+    assert.equal((await scopedRecords("scarpa-helix-mens", { cookies })).status, 401);
     assert.equal((await sessionsRequest({ cookies })).status, 401);
     assert.equal((await sessionsRequest({ method: "POST", cookies, body: { allOthers: true } })).status, 401);
     assert.equal((await accountRequest({ method: "PATCH", cookies, body: { name: "Expired" } })).status, 401);
@@ -669,6 +724,8 @@ try {
   assert.equal((await sessionsRequest({ method: "POST", body: { allOthers: true } })).status, 503);
   assert.equal((await accountRequest({ method: "PATCH", body: { name: "Unavailable" } })).status, 503);
   assert.equal((await exportRequest()).status, 503);
+  assert.equal((await personalShoe("scarpa-helix-mens")).status, 503);
+  assert.equal((await scopedRecords("scarpa-helix-mens")).status, 503);
   console.log("Passed missing-secret handling and public catalogue access.");
 } catch (error) {
   console.error(logs);

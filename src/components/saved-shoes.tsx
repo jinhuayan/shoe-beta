@@ -89,7 +89,7 @@ function SavedList({ onSessionExpired }: { onSessionExpired: () => void }) {
             {shoe.isSample ? <p className="text-sm text-stone-600">This shoe is no longer in the public catalogue.</p> : <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={selected.includes(shoe.slug)} disabled={pending || (!selected.includes(shoe.slug) && selected.length >= 3)} onChange={(event) => setSelected((previous) => event.target.checked ? [...previous, shoe.slug] : previous.filter((slug) => slug !== shoe.slug))} />Select {shoe.brand} {shoe.model} for comparison
             </label>}
-            <p><Link href={{ pathname: "/fit-records", query: { shoe: shoe.slug } }} className={linkClass}>Record a fitting</Link></p>
+            <p><Link href={`/shoes/${encodeURIComponent(shoe.slug)}#my-fittings`} className={linkClass}>Open fitting workspace</Link></p>
             <button disabled={pending} onClick={() => void mutate("DELETE", { shoeId: shoe.id })} aria-label={`Remove ${shoe.brand} ${shoe.model} from saved shoes`} className={`${linkClass} text-sm disabled:opacity-60`}>Remove from saved shoes</button>
           </li>)}
         </ul>

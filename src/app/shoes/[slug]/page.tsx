@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ShoeSizeCalculator } from "@/components/shoe-size-calculator";
 import { getSizingGuide } from "@/lib/shoe-sizing";
-import { SaveShoesButton } from "@/components/save-shoes-button";
+import { ShoePersonalDetails } from "@/components/shoe-personal-details";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { getDb } from "@/lib/db";
@@ -74,10 +74,10 @@ export default async function ShoePage({ params, searchParams }: ShoePageProps) 
         <p className="text-stone-600">{getSizingGuide(shoe.slug)?.note ?? "No verified model-specific sizing guidance is available yet."}</p>
         <ShoeSizeCalculator slug={shoe.slug} />
       </section>}
-      {!shoe.isSample && <SaveShoesButton slugs={[shoe.slug]} />}
       {!shoe.isSample && <p><Link href={{ pathname: "/compare", query: { shoe: shoe.slug } }} className="underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">Compare with other shoes</Link></p>}
-      <Link href={{ pathname: "/fit-records", query: { shoe: shoe.slug } }} className="inline-block rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">Record a fitting</Link>
+      <Link href="#my-fittings" className="inline-block rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">Open fitting workspace</Link>
       <p><Link href="/shops" className="rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">Find shops to ask about trying climbing shoes</Link></p>
+      <ShoePersonalDetails shoe={{ id: shoe.id, slug: shoe.slug, brand: shoe.brand, model: shoe.model, isSample: shoe.isSample }} />
     </main>
   );
 }
