@@ -2,6 +2,14 @@
 
 A climbing-shoe project built with Next.js, TypeScript, Tailwind CSS, and PostgreSQL. The first feature is a read-only shoe catalogue.
 
+## Account settings
+
+Open **Account** in the signed-in header, or visit `/account`, to edit your display name, change your password, manage active sessions, and download your data. Password changes require the current password and sign out other sessions while rotating the current session cookie. Session removal supports one other session or all other sessions, with confirmation; use the header's Sign out for the current session. Browser details are device-reported, not verified device identities.
+
+`PATCH /api/account` trims names and accepts 1–100 characters. `GET /api/account/sessions` returns active sessions without tokens or IP addresses; `POST` accepts `{ "sessionId": "..." }` or `{ "allOthers": true }`. These routes verify the current session, enforce ownership, and check Origin on writes. Password changes use Better Auth's [existing endpoint](https://better-auth.com/docs/authentication/email-password), preserving its password checks and cookie handling.
+
+`GET /api/account/export` downloads a private, uncached JSON file with account details, climbing profile, saved shoes, and fitting records. It includes photo-attached flags, but no photo files, storage keys, credentials, or session data. Download photos separately from the fitting journal. This is a data export; there is no import or restore flow. No migration, dependencies, or new environment variables are needed.
+
 ## My climbing overview
 
 `/dashboard` is the signed-in landing page and is linked as **My climbing** in the header. It combines a saved profile, the same rule-based recommendations used by the questionnaire, fitting/model/photo counts, six recent saved shoes, and three recent fittings. Saved shoes show how many fittings exist for that exact shoe ID; this does not imply that it fits. Recommendations use the saved profile only and do not learn from fitting notes.

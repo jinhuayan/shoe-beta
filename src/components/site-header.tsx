@@ -43,6 +43,7 @@ export function SiteHeader() {
         <div className="flex flex-wrap items-center gap-4" aria-live="polite">
           {isPending ? <span className="text-stone-500">Checking account…</span> : session ? (
             <>
+              <Link href="/account" className={linkClass}>Account</Link>
               <span className="max-w-48 truncate" title={session.user.name}>Signed in as {session.user.name}</span>
               <button type="button" disabled={signingOut} onClick={signOut} className={`${linkClass} disabled:opacity-60`}>
                 {signingOut ? "Signing out…" : "Sign out"}
