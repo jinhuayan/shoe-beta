@@ -1,12 +1,33 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { emptyJournalFilters, filterFitRecords, selectedFitRecords, summarizeFitRecords } from "./fit-journal";
+import { emptyJournalFilters, filterFitRecords, journalDateError, selectedFitRecords, summarizeFitRecords } from "./fit-journal";
 import { validateFitRecord, type SavedFitRecord } from "./fit-records";
 
 const shoe = { id: "a", slug: "scarpa-drago", brand: "SCARPA", model: "Drago", isSample: false };
-const base: SavedFitRecord = { id: "one", shoe, sizeEu: 40, fit: "TIGHT", toeFit: "TIGHT", forefootFit: "UNKNOWN", heelFit: "COMFORTABLE", notes: "Heel secure", rating: null, photo: null, createdAt: "2026-11-01T10:00:00Z" };
+const base: SavedFitRecord = { triedOn: null, location: "", shoeCondition: "UNKNOWN", durationMinutes: null, id: "one", shoe, sizeEu: 40, fit: "TIGHT", toeFit: "TIGHT", forefootFit: "UNKNOWN", heelFit: "COMFORTABLE", notes: "Heel secure", rating: null, photo: null, createdAt: "2026-11-01T10:00:00Z" };
 const records: SavedFitRecord[] = [base, { ...base, id: "two", sizeEu: 41, fit: "COMFORTABLE", rating: 4, photo: { recordId: "two" }, createdAt: "2026-11-02T10:00:00Z" }, { ...base, id: "three", shoe: { ...shoe, id: "b", brand: "La Sportiva", model: "Solution" }, sizeEu: 39.5, fit: "LOOSE", rating: 5, notes: "Toe room", createdAt: "2026-11-03T10:00:00Z" }];
 const input = { shoeId: "a", sizeEu: "40.5", fit: "COMFORTABLE", rating: "", notes: "" };
+
+test("date ranges, locations and conditions combine without treating added dates as tried dates", () => {
+  const sessions: SavedFitRecord[] = [{ ...base, id: "first", triedOn: "2026-11-01", location: "Demo gym", shoeCondition: "NEW" }, { ...base, id: "last", triedOn: "2026-11-14", location: "Demo shop", shoeCondition: "BROKEN_IN" }, { ...base, id: "undated", createdAt: "2026-11-10T10:00:00Z" }];
+  assert.deepEqual(filterFitRecords(sessions, { ...emptyJournalFilters, dateFrom: "2026-11-01", dateTo: "2026-11-14" }).map(({ id }) => id).sort(), ["first", "last"]);
+  assert.deepEqual(filterFitRecords(sessions, { ...emptyJournalFilters, dateFrom: "2026-11-14", dateTo: "2026-11-14", query: "demo shop", condition: "BROKEN_IN" }).map(({ id }) => id), ["last"]);
+  assert.equal(filterFitRecords(sessions, { ...emptyJournalFilters, dateTo: "2026-10-31" }).length, 0);
+  assert.ok(journalDateError({ dateFrom: "2026-11-15", dateTo: "2026-11-01" }));
+  assert.ok(journalDateError({ dateFrom: "2026-02-29", dateTo: "" }));
+  assert.equal(filterFitRecords(sessions, { ...emptyJournalFilters, dateFrom: "2026-11-15", dateTo: "2026-11-01" }).length, 0);
+  assert.equal(journalDateError(emptyJournalFilters), null);
+  assert.equal(filterFitRecords(sessions, { ...emptyJournalFilters, condition: "UNKNOWN" })[0].id, "undated");
+});
+
+test("tried-date sorting keeps undated entries last in both directions and preserves selection context", () => {
+  const sessions: SavedFitRecord[] = [{ ...base, id: "older", triedOn: "2026-11-01" }, { ...base, id: "newer", triedOn: "2026-11-14", durationMinutes: 90 }, { ...base, id: "undated" }];
+  const before = structuredClone(sessions);
+  assert.deepEqual(filterFitRecords(sessions, { ...emptyJournalFilters, sort: "tried-newest" }).map(({ id }) => id), ["newer", "older", "undated"]);
+  assert.deepEqual(filterFitRecords(sessions, { ...emptyJournalFilters, sort: "tried-oldest" }).map(({ id }) => id), ["older", "newer", "undated"]);
+  assert.equal(selectedFitRecords(sessions, ["newer", "older"])[0].durationMinutes, 90);
+  assert.deepEqual(sessions, before);
+});
 
 test("validates area observations while keeping legacy omitted fields absent", () => {
   const legacy = validateFitRecord(input);

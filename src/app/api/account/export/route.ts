@@ -1,3 +1,4 @@
+import { serializeFittingDate } from "@/lib/fitting-context";
 import { getAuth } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 
@@ -12,7 +13,7 @@ export async function GET(request: Request) {
     const [profile, savedShoes, records] = await getDb().$transaction([
       getDb().climbingProfile.findUnique({ where: { userId }, select: { footLengthMm: true, streetSizeEu: true, width: true, toeShape: true, heelVolume: true, experience: true, discipline: true, fitPreference: true, updatedAt: true } }),
       getDb().savedShoe.findMany({ where: { userId }, orderBy: [{ createdAt: "asc" }, { shoeId: "asc" }], select: { createdAt: true, shoe } }),
-      getDb().fitRecord.findMany({ where: { userId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], select: { sizeEu: true, fit: true, toeFit: true, forefootFit: true, heelFit: true, rating: true, notes: true, createdAt: true, updatedAt: true, shoe, photo: { select: { recordId: true } } } }),
+      getDb().fitRecord.findMany({ where: { userId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], select: { sizeEu: true, fit: true, toeFit: true, forefootFit: true, heelFit: true, rating: true, notes: true, triedOn: true, location: true, shoeCondition: true, durationMinutes: true, createdAt: true, updatedAt: true, shoe, photo: { select: { recordId: true } } } }),
     ]);
     return Response.json({
       formatVersion: 1,
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
       account: { name: session.user.name, email: session.user.email, createdAt: session.user.createdAt },
       profile,
       savedShoes,
-      fitRecords: records.map(({ photo, ...record }) => ({ ...record, photoAttached: photo !== null })),
+      fitRecords: records.map(({ photo, ...record }) => ({ ...record, triedOn: serializeFittingDate(record.triedOn), photoAttached: photo !== null })),
     }, { headers: { ...headers, "Content-Disposition": 'attachment; filename="shoe-beta-backup.json"', "X-Content-Type-Options": "nosniff" } });
   } catch {
     return Response.json({ error: "Couldn't download your data. Please try again." }, { status: 503, headers });

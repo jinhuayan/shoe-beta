@@ -9,7 +9,7 @@ export type DashboardData = {
   profileUpdatedAt: string | null;
   summary: { fittings: number; models: number; photos: number; saved: number };
   saved: SavedProgress[];
-  recent: Pick<SavedFitRecord, "id" | "shoe" | "sizeEu" | "fit" | "rating" | "createdAt">[];
+  recent: Pick<SavedFitRecord, "id" | "shoe" | "sizeEu" | "fit" | "rating" | "triedOn" | "location" | "createdAt">[];
   recommendations: RecommendationResponse | null;
 };
 
