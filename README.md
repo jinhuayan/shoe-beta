@@ -1,6 +1,6 @@
 # Shoe Beta
 
-A climbing-shoe project built with Next.js, TypeScript, Tailwind CSS, and PostgreSQL. The first feature is a read-only shoe catalogue.
+A climbing-shoe app built with Next.js, TypeScript, Tailwind CSS, and PostgreSQL. Browse sourced shoe details, get explainable shortlists, save private fittings and photos, and find shops to try shoes on.
 
 ## Shared UI
 
@@ -280,7 +280,7 @@ npm run db:seed
 
 Restart the dev server after applying migrations and regenerating Prisma Client.
 
-The seed adds 20 real SCARPA and La Sportiva climbing shoes. Every entry includes its official product URL and a fixed review date. Repeating it skips existing slugs and preserves all edits. Existing fictional shoes and their fit records remain in the database, but samples are excluded from public catalogue searches and recommendations. Existing sample detail links and private records still work.
+The seed adds 40 real climbing shoes across SCARPA, La Sportiva, Evolv, Tenaya, Mad Rock, and Unparallel. Every entry includes its official product URL and a fixed review date. Repeating it skips existing slugs and preserves all edits. Existing databases need the updated seed run once to add the 20 new shoes; a code deployment alone does not import data. No schema migration is introduced by this catalogue expansion. Existing fictional shoes and their fit records remain in the database, but samples are excluded from public catalogue searches and recommendations. Existing sample detail links and private records still work.
 
 Apply the source-field migration before deploying this version, then seed the target database:
 
