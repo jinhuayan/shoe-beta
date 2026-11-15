@@ -243,6 +243,14 @@ With Git integration enabled, Vercel creates preview deployments for branch push
 
 GitHub CI and Vercel automatic deployments run independently. This setup does not require additional Vercel Deployment Checks.
 
+After a deployment, run the read-only smoke check against its origin:
+
+```bash
+npm run test:smoke -- https://shoe-beta-one.vercel.app
+```
+
+It checks public pages, guest recommendations, authentication availability, and private API access/cache controls without creating accounts or records. Add `--shops` to make one real Google Places request. CI also runs the default smoke check against its temporary local server. See [release checks](docs/release-checks.md) for the current verification scope and remaining deployment step.
+
 The Prisma Postgres integration supplies `DATABASE_URL_POOLED` for application requests and a direct `DATABASE_URL` for migrations. The app prefers the pooled URL and falls back to the direct URL. Use a separate test database for Preview and the production database for Production; a local `localhost` database will not work on Vercel. From a trusted shell configured for each target database, run `npm run db:deploy` before deploying code that needs a new schema. With a direct URL in `.env.local`, run `DOTENV_CONFIG_PATH=.env.local npm run db:deploy`. Catalogue seeding is a separate manual step. The build generates Prisma Client but does not migrate or seed a database. Redeploy after changing environment variables. See [Prisma Postgres on Vercel](https://www.prisma.io/docs/guides/postgres/vercel).
 
 ## Database setup

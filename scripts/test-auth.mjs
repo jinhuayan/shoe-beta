@@ -177,6 +177,7 @@ try {
   await pool.query('UPDATE "Shoe" SET description = $1 WHERE id = $2', [drago.description, drago.id]);
   await start();
   const cataloguePage = await (await fetch(`${baseURL}/shoes`)).text();
+  execFileSync(process.execPath, [join(project, "scripts/smoke.mjs"), baseURL], { cwd: project, env, stdio: "inherit" });
   assert.ok(cataloguePage.includes("scarpa-drago"));
   assert.ok(!cataloguePage.includes(fitShoeId));
   const filteredPage = await (await fetch(`${baseURL}/shoes?q=la%20sportiva%20solution&brand=La%20Sportiva&closure=HOOK_AND_LOOP`)).text();
