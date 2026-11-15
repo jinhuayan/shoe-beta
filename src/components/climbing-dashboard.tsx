@@ -52,8 +52,8 @@ function DashboardOverview({ onSessionExpired }: { onSessionExpired: () => void 
     <div className="space-y-8" aria-busy={loading}>
       <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-stone-600">Only your account can see this overview.</p><Button variant="ghost" disabled={loading} onClick={refresh}>{loading ? "Refreshing…" : "Refresh overview"}</Button></div>
       {error && <Notice tone="error" role="alert">{error} The last loaded overview is still shown.</Notice>}
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">{[["Fittings", data.summary.fittings], ["Models tried", data.summary.models], ["Saved shoes", data.summary.saved], ["Fitting photos", data.summary.photos]].map(([label, count]) => <Card key={label} className="p-4"><dt className="text-sm text-stone-600">{label}</dt><dd className="mt-2 text-2xl font-semibold">{count}</dd></Card>)}</dl>
-      <section className="space-y-3 rounded-lg bg-stone-50 p-5" aria-labelledby="next-steps-heading">
+      <dl className="dashboard-metrics grid grid-cols-2 gap-3 sm:grid-cols-4">{[["Fittings", data.summary.fittings], ["Models tried", data.summary.models], ["Saved shoes", data.summary.saved], ["Fitting photos", data.summary.photos]].map(([label, count]) => <Card key={label} className="p-4"><dt className="text-sm">{label}</dt><dd className="mt-2">{count}</dd></Card>)}</dl>
+      <section className="dashboard-next-steps space-y-3 rounded-lg bg-stone-50 p-5" aria-labelledby="next-steps-heading">
         <h2 id="next-steps-heading" className="text-xl font-semibold">Your next steps</h2>
         <ul className="list-disc space-y-2 pl-5">
           <li><Link href="/questionnaire" className={linkClass}>{profile ? "Review or update your climbing profile" : "Create and save your climbing profile"}</Link></li>

@@ -21,14 +21,26 @@ export default async function ShoesPage({ searchParams }: { searchParams: Promis
 
   return (
     <PageShell className="space-y-6">
-      <PageHeader title="Climbing shoe catalogue" eyebrow="Shoe Beta" description="Search by brand or model, then narrow down the shoe attributes."><Link href="/questionnaire" className="inline-block ui-link">Review your feet and climbing preferences</Link></PageHeader>
+      <section className="catalogue-hero" aria-label="Climbing shoe field guide">
+        <PageHeader title="Climbing shoe catalogue" eyebrow="Shoe Beta / Field guide" description="Explore the details. Compare your options. Find your next pair to try on."><Button asChild><Link href="/questionnaire">Take the fit questionnaire <span aria-hidden="true">↗</span></Link></Button></PageHeader>
+        <div className="catalogue-art" aria-hidden="true">
+          <svg viewBox="0 0 440 320" fill="none">
+            <g stroke="currentColor" strokeWidth="1"><path d="M-30 250C40 110 120 330 190 180S310 30 480 110" /><path d="M-20 275C60 130 130 350 210 200S330 50 480 140" /><path d="M-20 220C20 70 100 300 170 155S290 0 480 80" /><path d="M-20 190C20 40 90 260 150 130S270-30 470 50" /><path d="M-20 305C80 160 150 380 230 225S350 80 490 170" /></g>
+            <path className="route-line" d="m83 259 76-72 68 16 35-93 84-55" strokeWidth="2" strokeDasharray="5 7" />
+            <g className="route-holds" strokeWidth="2"><path d="m65 259 18-17 23 7-4 23-25 6-12-19Z" /><path d="m140 181 24-13 17 16-6 19-27 2-8-24Z" /><path d="m210 198 23-12 17 19-12 18-24-5-4-20Z" /><path d="m247 104 20-15 18 15-2 20-25 3-11-23Z" /><path d="m328 50 21-11 18 17-12 20-24-7-3-19Z" /></g>
+            <g className="route-dots"><circle cx="83" cy="259" r="4" /><circle cx="159" cy="187" r="4" /><circle cx="227" cy="203" r="4" /><circle cx="262" cy="110" r="4" /><circle cx="346" cy="55" r="4" /></g>
+          </svg>
+          <p>Every foothold<br /><strong>starts with fit.</strong></p>
+        </div>
+      </section>
 
       <Card as="form"
         key={JSON.stringify(filters)}
         action="/shoes"
         method="get"
-        className="grid gap-4 p-4 sm:grid-cols-3"
+        className="catalogue-filters grid gap-4 p-5 sm:grid-cols-3"
       >
+        <p className="filter-caption sm:col-span-3">Narrow the field <span>Search &amp; filter</span></p>
         <label className="space-y-1 sm:col-span-2">
           <span className="block text-sm font-medium">Brand or model</span>
           <Input name="q" type="search" maxLength={100} defaultValue={filters.q} placeholder="e.g. La Sportiva Solution" className="w-full" />
@@ -68,7 +80,7 @@ export default async function ShoesPage({ searchParams }: { searchParams: Promis
               </h2>
               <ul className="shoe-attributes" aria-label="Shoe attributes">{[downturnLabels[shoe.downturn], stiffnessLabels[shoe.stiffness], closureLabels[shoe.closure]].map((label, index) => <li key={index} className="attribute-tag">{label}</li>)}</ul>
               {shoe.description && <p className="text-sm leading-6 text-stone-600">{shoe.description}</p>}
-              <Link href={{ pathname: "/compare", query: { shoe: shoe.slug } }} aria-label={`Compare ${shoe.brand} ${shoe.model}`} className="catalogue-action ui-link">Compare this shoe</Link>
+              <Link href={{ pathname: "/compare", query: { shoe: shoe.slug } }} aria-label={`Compare ${shoe.brand} ${shoe.model}`} className="catalogue-action ui-link">Compare this shoe <span aria-hidden="true">↗</span></Link>
             </Card>
           ))}
         </ul>

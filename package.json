@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test src/lib/*.test.ts",
     "test:auth": "node scripts/test-auth.mjs",
+    "test:smoke": "node scripts/smoke.mjs",
     "lint": "eslint . --max-warnings=0",
     "postinstall": "prisma generate",
     "prebuild": "prisma generate",

@@ -57,8 +57,8 @@ export function SiteHeader() {
         <div className="header-inner">
           <div className="header-top">
             <Link href="/shoes" aria-label="Shoe Beta" className="brand" onClick={() => setMenuOpen(false)}>
-              <svg className="brand-mark" viewBox="0 0 40 40" fill="none" aria-hidden="true"><rect width="40" height="40" rx="11" fill="#285c46" /><path d="M9 29 19 11l12 18H9Z" stroke="#f1f2dd" strokeWidth="2" strokeLinejoin="round" /><path d="m15 21 4 3 4-4" stroke="#c5da9d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              <span><span className="brand-name">Shoe Beta</span><span className="brand-caption">Find your next foothold</span></span>
+              <svg className="brand-mark" viewBox="0 0 40 40" fill="none" aria-hidden="true"><rect width="40" height="40" rx="11" fill="#c9ee62" /><path d="M9 29 19 11l12 18H9Z" stroke="#17231c" strokeWidth="2" strokeLinejoin="round" /><path d="m15 21 4 3 4-4" stroke="#17231c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              <span><span className="brand-name">Shoe Beta</span><span className="brand-caption">Climb / Fit / Repeat</span></span>
             </Link>
             <div className="desktop-auth">{account()}</div>
             <Collapsible.Trigger asChild><Button ref={trigger} type="button" variant="secondary" className="mobile-toggle" aria-label={menuOpen ? "Close menu" : "Open menu"}><svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">{menuOpen ? <path d="m5 5 10 10M15 5 5 15" stroke="currentColor" strokeWidth="1.5" /> : <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.5" />}</svg>{menuOpen ? "Close" : "Menu"}</Button></Collapsible.Trigger>
