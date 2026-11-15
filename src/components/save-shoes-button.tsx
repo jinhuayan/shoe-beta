@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+
 import Link from "next/link";
 import { useState } from "react";
 
@@ -22,8 +24,8 @@ export function SaveShoesButton({ slugs, onSaved }: { slugs: string[]; onSaved?:
   }
   return (
     <div className="space-y-2">
-      <button type="button" disabled={pending} onClick={save} className="rounded-lg border border-stone-300 px-4 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60">{pending ? "Saving…" : slugs.length === 1 ? "Save to my shoes" : "Save this shortlist"}</button>
-      <p role="status" className="text-sm text-stone-600">{message} {signIn ? <Link href="/sign-in" className="underline">Sign in</Link> : message && <Link href="/saved-shoes" className="underline">View saved shoes</Link>}</p>
+      <Button variant="secondary" type="button" disabled={pending} onClick={save}>{pending ? "Saving…" : slugs.length === 1 ? "Save to my shoes" : "Save this shortlist"}</Button>
+      <p role="status" className="text-sm text-stone-600">{message} {signIn ? <Link href="/sign-in" className="ui-link">Sign in</Link> : message && <Link href="/saved-shoes" className="ui-link">View saved shoes</Link>}</p>
     </div>
   );
 }

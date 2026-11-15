@@ -1,3 +1,5 @@
+import { PageHeader, PageShell } from "@/components/ui/page";
+import { Notice } from "@/components/ui/notice";
 import Link from "next/link";
 import { ShoeSizeCalculator } from "@/components/shoe-size-calculator";
 import { getSizingGuide } from "@/lib/shoe-sizing";
@@ -23,18 +25,15 @@ export default async function ShoePage({ params, searchParams }: ShoePageProps) 
   if (!shoe) notFound();
 
   return (
-    <main className="mx-auto max-w-4xl space-y-6 p-6 sm:p-10">
-      <Link href={{ pathname: "/shoes", query: filters }} className="inline-block rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">
+    <PageShell className="space-y-6">
+      <Link href={{ pathname: "/shoes", query: filters }} className="inline-block ui-link">
         Back to catalogue
       </Link>
-      <header className="space-y-2">
-        <p className="text-sm text-stone-500">{shoe.brand}</p>
-        <h1 className="text-3xl font-semibold tracking-tight">{shoe.model}</h1>
-      </header>
+      <PageHeader title={shoe.model} eyebrow={shoe.brand} />
       {shoe.isSample && (
-        <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+        <Notice tone="warning">
           This is a fictional sample climbing shoe, not a real product.
-        </p>
+        </Notice>
       )}
       <p className="leading-7 text-stone-600">
         {shoe.description?.trim() || "No description available yet."}
@@ -64,7 +63,7 @@ export default async function ShoePage({ params, searchParams }: ShoePageProps) 
       {shoe.sourceUrl?.startsWith("https://") && (
         <section className="space-y-2 rounded-lg bg-stone-50 p-4 text-sm text-stone-600">
           <h2 className="font-medium text-stone-900">Manufacturer information</h2>
-          <p><a href={shoe.sourceUrl} target="_blank" rel="noreferrer" className="underline underline-offset-4">View {shoe.brand} product page (opens a new tab)</a></p>
+          <p><a href={shoe.sourceUrl} target="_blank" rel="noreferrer" className="ui-link">View {shoe.brand} product page (opens a new tab)</a></p>
           {shoe.sourceCheckedAt && <p>Checked <time dateTime={shoe.sourceCheckedAt.toISOString().slice(0, 10)}>{shoe.sourceCheckedAt.toLocaleDateString("en-CA", { timeZone: "UTC", year: "numeric", month: "short", day: "numeric" })}</time>.</p>}
           <p>Unknown means the attribute has not been confirmed. Overall shoe volume does not establish forefoot width or heel volume. These details do not predict your shoe size.</p>
         </section>
@@ -74,10 +73,10 @@ export default async function ShoePage({ params, searchParams }: ShoePageProps) 
         <p className="text-stone-600">{getSizingGuide(shoe.slug)?.note ?? "No verified model-specific sizing guidance is available yet."}</p>
         <ShoeSizeCalculator slug={shoe.slug} />
       </section>}
-      {!shoe.isSample && <p><Link href={{ pathname: "/compare", query: { shoe: shoe.slug } }} className="underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">Compare with other shoes</Link></p>}
-      <Link href="#my-fittings" className="inline-block rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">Open fitting workspace</Link>
-      <p><Link href="/shops" className="rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">Find shops to ask about trying climbing shoes</Link></p>
+      {!shoe.isSample && <p><Link href={{ pathname: "/compare", query: { shoe: shoe.slug } }} className="ui-link">Compare with other shoes</Link></p>}
+      <Link href="#my-fittings" className="inline-block ui-link">Open fitting workspace</Link>
+      <p><Link href="/shops" className="ui-link">Find shops to ask about trying climbing shoes</Link></p>
       <ShoePersonalDetails shoe={{ id: shoe.id, slug: shoe.slug, brand: shoe.brand, model: shoe.model, isSample: shoe.isSample }} />
-    </main>
+    </PageShell>
   );
 }

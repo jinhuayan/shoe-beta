@@ -1,3 +1,5 @@
+import { PageShell } from "@/components/ui/page";
+
 export default function Loading() {
-  return <p role="status" className="p-6 sm:p-10">Loading climbing shoes…</p>;
+  return <PageShell><p role="status" className="loading-line">Loading climbing shoes…</p></PageShell>;
 }

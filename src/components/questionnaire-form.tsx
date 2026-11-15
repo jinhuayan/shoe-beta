@@ -1,5 +1,10 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import { Notice } from "@/components/ui/notice";
+import { Card } from "@/components/ui/card";
+import { Input, Select } from "@/components/ui/controls";
+
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { reviewAnswers } from "@/app/questionnaire/actions";
@@ -8,7 +13,6 @@ import { authClient } from "@/lib/auth-client";
 import { choiceFields, measurementFields, type QuestionnaireState } from "@/lib/questionnaire";
 
 const initialState: QuestionnaireState = { values: {}, errors: {}, profile: null };
-const controlClass = "w-full rounded-lg border border-stone-300 bg-white p-2 focus-visible:outline-2 focus-visible:outline-offset-2";
 
 export function QuestionnaireForm() {
   const { data: session, isPending, refetch } = authClient.useSession();
@@ -63,13 +67,13 @@ function ProfileForm({ signedIn, checkingAccount, onSessionExpired }: { signedIn
       {checkingAccount ? <p role="status" className="text-sm text-stone-500">Checking account…</p> : signedIn ? (
         <>
           <form action={formAction}>
-            <button type="submit" name="intent" value="load" disabled={busy} className="rounded-lg border border-stone-300 px-4 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60">Load saved profile</button>
+            <Button variant="secondary" type="submit" name="intent" value="load" disabled={busy}>Load saved profile</Button>
           </form>
           <p className="text-sm text-stone-500">Loading replaces the current answers.</p>
         </>
-      ) : <p className="text-sm text-stone-600"><Link href="/sign-in" className="rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">Sign in</Link> before entering answers if you want to save a profile.</p>}
+      ) : <p className="text-sm text-stone-600"><Link href="/sign-in" className="ui-link">Sign in</Link> before entering answers if you want to save a profile.</p>}
       {notice && <p role="status" className="text-sm text-stone-600">{notice}</p>}
-      {profileError && <p role="alert" tabIndex={-1} ref={(node) => { node?.focus(); }} className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{profileError}</p>}
+      {profileError && <Notice tone="error" role="alert" tabIndex={-1} ref={(node) => { node?.focus(); }}>{profileError}</Notice>}
     </div>
   );
 
@@ -78,7 +82,7 @@ function ProfileForm({ signedIn, checkingAccount, onSessionExpired }: { signedIn
     return (
       <div className="space-y-4" aria-busy={busy}>
         {profileControls}
-        <section className="space-y-4 rounded-lg border border-stone-200 p-5" aria-labelledby="profile-heading">
+        <Card as="section" className="space-y-4 p-5" aria-labelledby="profile-heading">
           <h2 id="profile-heading" tabIndex={-1} ref={(node) => { node?.focus(); }} className="text-xl font-semibold">Your climbing profile</h2>
           <dl className="grid gap-4 sm:grid-cols-2">
             <div>
@@ -97,16 +101,16 @@ function ProfileForm({ signedIn, checkingAccount, onSessionExpired }: { signedIn
             ))}
           </dl>
           <div className="flex flex-wrap gap-3">
-            <button type="button" disabled={busy} onClick={() => { setEditing(true); setNotice(""); }} className="rounded-lg border border-stone-300 px-4 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60">Edit answers</button>
+            <Button variant="secondary" type="button" disabled={busy} onClick={() => { setEditing(true); setNotice(""); }}>Edit answers</Button>
             {signedIn && (
               <form action={formAction}>
                 {Object.entries(state.values).map(([name, value]) => <input key={name} type="hidden" name={name} value={value} />)}
-                <button type="submit" name="intent" value="save" disabled={busy} className="rounded-lg bg-stone-900 px-4 py-2 text-white focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60">{pending ? "Please wait…" : "Save profile"}</button>
+                <Button type="submit" name="intent" value="save" disabled={busy}>{pending ? "Please wait…" : "Save profile"}</Button>
               </form>
             )}
           </div>
           <RecommendationResults values={state.values} />
-        </section>
+        </Card>
       </div>
     );
   }
@@ -117,11 +121,11 @@ function ProfileForm({ signedIn, checkingAccount, onSessionExpired }: { signedIn
       <form key={JSON.stringify(state.values)} action={formAction} noValidate aria-busy={busy}>
         <fieldset disabled={busy} className="space-y-6">
           {Object.keys(state.errors).length > 0 && (
-            <p role="alert" tabIndex={-1} ref={(node) => { node?.focus(); }} className="rounded-lg bg-red-50 p-3 text-red-800">
+            <Notice tone="error" role="alert" tabIndex={-1} ref={(node) => { node?.focus(); }}>
               Check the highlighted answers below.
-            </p>
+            </Notice>
           )}
-          <fieldset className="grid gap-4 rounded-lg border border-stone-200 p-5 sm:grid-cols-2">
+          <Card as="fieldset" className="grid gap-4 p-5 sm:grid-cols-2">
             <legend className="px-2 text-lg font-semibold">Your feet</legend>
             <p className="text-sm text-stone-600 sm:col-span-2">Measurements are optional. Use millimetres for foot length and EU sizing for street shoes. Size references need a street size and a supported fit preference; foot length alone is not converted.</p>
             {Object.entries(measurementFields).map(([name, field]) => {
@@ -129,7 +133,7 @@ function ProfileForm({ signedIn, checkingAccount, onSessionExpired }: { signedIn
               return (
                 <div key={name} className="space-y-2">
                   <label htmlFor={name} className="block text-sm font-medium">{field.label} <span className="font-normal text-stone-500">(optional)</span></label>
-                  <input
+                  <Input
                     id={name}
                     name={name}
                     type="number"
@@ -140,21 +144,21 @@ function ProfileForm({ signedIn, checkingAccount, onSessionExpired }: { signedIn
                     defaultValue={state.values[key] ?? ""}
                     aria-invalid={!!state.errors[key]}
                     aria-describedby={state.errors[key] ? `${name}-error` : undefined}
-                    className={controlClass}
+
                   />
                   {state.errors[key] && <p id={`${name}-error`} className="text-sm text-red-700">{state.errors[key]}</p>}
                 </div>
               );
             })}
             {(["width", "toeShape", "heelVolume"] as const).map(renderChoice)}
-          </fieldset>
-          <fieldset className="grid gap-4 rounded-lg border border-stone-200 p-5 sm:grid-cols-2">
+          </Card>
+          <Card as="fieldset" className="grid gap-4 p-5 sm:grid-cols-2">
             <legend className="px-2 text-lg font-semibold">Your climbing</legend>
             {(["experience", "discipline", "fitPreference"] as const).map(renderChoice)}
-          </fieldset>
-          <button type="submit" disabled={busy} className="rounded-lg bg-stone-900 px-4 py-2 text-white focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60">
+          </Card>
+          <Button type="submit" disabled={busy}>
             {pending ? "Please wait…" : "Review answers"}
-          </button>
+          </Button>
         </fieldset>
       </form>
     </div>
@@ -165,16 +169,16 @@ function ProfileForm({ signedIn, checkingAccount, onSessionExpired }: { signedIn
     return (
       <div key={name} className="space-y-2">
         <label htmlFor={name} className="block text-sm font-medium">{field.label}</label>
-        <select
+        <Select
           id={name}
           name={name}
           defaultValue={state.values[name] ?? "UNKNOWN"}
           aria-invalid={!!state.errors[name]}
           aria-describedby={state.errors[name] ? `${name}-error` : undefined}
-          className={controlClass}
+
         >
           {Object.entries(field.options).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
+        </Select>
         {state.errors[name] && <p id={`${name}-error`} className="text-sm text-red-700">{state.errors[name]}</p>}
       </div>
     );

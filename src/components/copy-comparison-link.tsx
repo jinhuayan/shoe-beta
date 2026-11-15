@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+
 import { useState } from "react";
 
 export function CopyComparisonLink({ href }: { href: string }) {
@@ -14,7 +16,7 @@ export function CopyComparisonLink({ href }: { href: string }) {
   }
   return (
     <div className="space-y-2">
-      <button type="button" onClick={copy} className="rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">Copy comparison link</button>
+      <Button variant="ghost" type="button" onClick={copy}>Copy comparison link</Button>
       <p role="status" className="text-sm text-stone-600">{message}</p>
     </div>
   );

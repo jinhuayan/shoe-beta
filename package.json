@@ -25,6 +25,8 @@
     "@better-auth/prisma-adapter": "1.7.19",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
+    "@radix-ui/react-collapsible": "1.1.21",
+    "@radix-ui/react-slot": "1.2.3",
     "@vercel/functions": "3.11.2",
     "better-auth": "1.7.19",
     "dotenv": "^17.0.0",
