@@ -33,6 +33,7 @@ export function SiteHeader() {
       <nav aria-label="Main" className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-4 px-6 py-4 text-sm sm:px-10">
         <div className="flex flex-wrap items-center gap-4">
           <Link href="/shoes" className={`${linkClass} font-semibold`}>Shoe Beta</Link>
+          <Link href="/dashboard" className={linkClass}>My climbing</Link>
           <Link href="/compare" className={linkClass}>Compare shoes</Link>
           <Link href="/questionnaire" className={linkClass}>Questionnaire</Link>
           <Link href="/saved-shoes" className={linkClass}>Saved shoes</Link>
@@ -42,6 +43,7 @@ export function SiteHeader() {
         <div className="flex flex-wrap items-center gap-4" aria-live="polite">
           {isPending ? <span className="text-stone-500">Checking account…</span> : session ? (
             <>
+              <Link href="/account" className={linkClass}>Account</Link>
               <span className="max-w-48 truncate" title={session.user.name}>Signed in as {session.user.name}</span>
               <button type="button" disabled={signingOut} onClick={signOut} className={`${linkClass} disabled:opacity-60`}>
                 {signingOut ? "Signing out…" : "Sign out"}

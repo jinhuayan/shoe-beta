@@ -95,7 +95,7 @@ async function start(configured = true, https = false) {
   throw new Error("Test server did not become ready.");
 }
 
-async function request(path, { method = "GET", body, cookies = new Map(), origin = baseURL, api = "/api/auth" } = {}) {
+async function request(path, { method = "GET", body, cookies = new Map(), origin = baseURL, api = "/api/auth", retryRateLimit = true } = {}) {
   const headers = origin ? { Origin: origin } : {};
   const form = body instanceof FormData;
   if (body && !form) headers["Content-Type"] = "application/json";
@@ -103,6 +103,13 @@ async function request(path, { method = "GET", body, cookies = new Map(), origin
   const response = await fetch(`${baseURL}${api}${path}`, {
     method, headers, body: form ? body : body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(15000),
   });
+  if (response.status === 429 && retryRateLimit) {
+    const seconds = Number(response.headers.get("retry-after") ?? response.headers.get("x-retry-after"));
+    assert.ok(Number.isFinite(seconds) && seconds > 0 && seconds <= 10, "Unexpected auth rate-limit window.");
+    await response.body.cancel();
+    await delay(seconds * 1000 + 100);
+    return request(path, { method, body, cookies, origin, api, retryRateLimit: false });
+  }
   const setCookies = response.headers.getSetCookie();
   for (const cookie of setCookies) {
     const pair = cookie.split(";")[0];
@@ -110,7 +117,7 @@ async function request(path, { method = "GET", body, cookies = new Map(), origin
     if (/max-age=0/i.test(cookie) || pair.endsWith("=")) cookies.delete(name);
     else cookies.set(name, pair);
   }
-  return { status: response.status, body: await response.json(), setCookies, cacheControl: response.headers.get("cache-control") };
+  return { status: response.status, body: await response.json(), setCookies, cacheControl: response.headers.get("cache-control"), disposition: response.headers.get("content-disposition") };
 }
 
 const profileRequest = (options = {}) => request("", { ...options, api: "/api/profile" });
@@ -241,6 +248,18 @@ try {
   assert.equal(forbidden.status, 403);
   assert.equal((await request("/get-session", { cookies: aliceCookies })).body.user.id, alice.body.user.id);
   console.log("Passed session ownership and origin checks.");
+  const dashboardRequest = (options = {}) => request("", { ...options, api: "/api/dashboard" });
+  assert.equal((await dashboardRequest()).status, 401);
+  const emptyDashboard = await dashboardRequest({ cookies: aliceCookies });
+  assert.equal(emptyDashboard.status, 200);
+  assert.match(emptyDashboard.cacheControl, /private.*no-store/);
+  assert.deepEqual(emptyDashboard.body.summary, { fittings: 0, models: 0, photos: 0, saved: 0 });
+  assert.equal(emptyDashboard.body.profile, null);
+  assert.equal(emptyDashboard.body.recommendations, null);
+  assert.deepEqual(emptyDashboard.body.saved, []);
+  assert.deepEqual(emptyDashboard.body.recent, []);
+  assert.equal((await fetch(`${baseURL}/dashboard`)).status, 200);
+
   const savedRequest = (options = {}) => request("", { ...options, api: "/api/saved-shoes" });
   const saveBody = { slugs: ["scarpa-drago", "scarpa-helix-mens", "la-sportiva-solution"], userId: bob.body.user.id };
   for (const method of ["GET", "POST", "DELETE"]) assert.equal((await savedRequest({ method, body: method === "GET" ? undefined : saveBody })).status, 401);
@@ -307,6 +326,20 @@ try {
   assert.equal((await profileRequest({ method: "PUT", cookies: aliceCookies, body: answers(), origin: null })).status, 403);
   assert.equal((await profileRequest({ cookies: aliceCookies })).body.profile.width, "WIDE");
   console.log("Passed profile creation, updates, validation, cache headers, origin checks, and account isolation.");
+  const dashboardProfile = await dashboardRequest({ cookies: aliceCookies });
+  assert.equal(dashboardProfile.body.profile.width, "WIDE");
+  assert.ok(dashboardProfile.body.profileUpdatedAt);
+  const profileAnswers = (await profileRequest({ cookies: aliceCookies })).body.values;
+  const referenceRecommendations = await request("", { api: "/api/recommendations", method: "POST", body: answers(profileAnswers) });
+  assert.deepEqual(dashboardProfile.body.recommendations, referenceRecommendations.body);
+  assert.equal((await dashboardRequest({ cookies: bobCookies })).body.profile.width, "REGULAR");
+  const bobAnswers = (await profileRequest({ cookies: bobCookies })).body.values;
+  assert.equal((await profileRequest({ method: "PUT", cookies: bobCookies, body: answers({ footLengthMm: "", streetSizeEu: "", width: "UNKNOWN", toeShape: "UNKNOWN", heelVolume: "UNKNOWN", experience: "UNKNOWN", discipline: "UNKNOWN", fitPreference: "UNKNOWN" }) })).status, 200);
+  assert.equal((await dashboardRequest({ cookies: bobCookies })).body.recommendations.status, "insufficient");
+  assert.equal((await profileRequest({ method: "PUT", cookies: bobCookies, body: answers(bobAnswers) })).status, 200);
+  assert.equal((await dashboardRequest({ cookies: bobCookies })).body.recommendations.status, "empty");
+  assert.ok(!JSON.stringify(dashboardProfile.body).includes('"userId"'));
+
 
   assert.equal((await recordsRequest()).status, 401);
   assert.equal((await recordsRequest({ method: "POST", body: recordAnswers() })).status, 401);
@@ -373,6 +406,35 @@ try {
   const persistedArea = (await recordsRequest({ cookies: aliceCookies })).body.records.find((record) => record.id === firstRecord.body.record.id);
   assert.equal(persistedArea.forefootFit, "COMFORTABLE");
   console.log("Passed area feedback persistence, validation, legacy partial updates and account isolation.");
+  const aliceOverview = (await dashboardRequest({ cookies: aliceCookies })).body;
+  assert.equal(aliceOverview.summary.fittings, 2);
+  assert.equal(aliceOverview.summary.models, 1);
+  assert.equal(aliceOverview.summary.saved, 2);
+  assert.equal(aliceOverview.summary.photos, 0);
+  assert.equal(aliceOverview.recent.length, 2);
+  assert.ok(aliceOverview.recent.every((record) => !Object.hasOwn(record, "notes") && !Object.hasOwn(record, "userId")));
+  const isolatedOverview = await request(`?userId=${alice.body.user.id}`, { api: "/api/dashboard", cookies: bobCookies });
+  assert.equal(isolatedOverview.body.summary.fittings, 1);
+  assert.equal(isolatedOverview.body.summary.saved, 0);
+  assert.ok(isolatedOverview.body.recent.every((record) => record.id === bobRecord.body.record.id));
+  const previewSaved = await savedRequest({ method: "POST", cookies: aliceCookies, body: { slugs: ["scarpa-drago"] } });
+  const extraRecord = await recordsRequest({ method: "POST", cookies: aliceCookies, body: recordAnswers({ shoeId: (await savedRequest({ cookies: aliceCookies })).body.shoes.find((shoe) => shoe.slug === "scarpa-drago").id }) });
+  const extraRecord2 = await recordsRequest({ method: "POST", cookies: aliceCookies, body: recordAnswers({ sizeEu: "42" }) });
+  const capped = (await dashboardRequest({ cookies: aliceCookies })).body;
+  assert.equal(capped.summary.fittings, 4);
+  assert.equal(capped.recent.length, 3);
+  assert.equal(capped.saved.find(({ shoe }) => shoe.slug === "scarpa-drago").fittings, 1);
+  for (const id of [extraRecord.body.record.id, extraRecord2.body.record.id]) assert.equal((await recordsRequest({ method: "DELETE", cookies: aliceCookies, body: { id } })).status, 200);
+  if (previewSaved.body.added) assert.equal((await savedRequest({ method: "DELETE", cookies: aliceCookies, body: { shoeId: capped.saved.find(({ shoe }) => shoe.slug === "scarpa-drago").shoe.id } })).status, 200);
+  const beforeCap = (await savedRequest({ cookies: aliceCookies })).body;
+  const newChoices = beforeCap.shoes.filter((shoe) => !beforeCap.saved.some((item) => item.shoe.id === shoe.id)).slice(0, 7);
+  for (let i = 0; i < newChoices.length; i += 3) assert.equal((await savedRequest({ method: "POST", cookies: aliceCookies, body: { slugs: newChoices.slice(i, i + 3).map((shoe) => shoe.slug) } })).status, 200);
+  const savedCap = (await dashboardRequest({ cookies: aliceCookies })).body;
+  assert.equal(savedCap.summary.saved, beforeCap.saved.length + 7);
+  assert.equal(savedCap.saved.length, 6);
+  for (const shoe of newChoices) assert.equal((await savedRequest({ method: "DELETE", cookies: aliceCookies, body: { shoeId: shoe.id } })).status, 200);
+  console.log("Passed dashboard empty/populated states, profile recommendations, counts, caps and account isolation.");
+
   for (const method of ["PATCH", "DELETE"]) {
     assert.equal((await recordsRequest({ method, cookies: bobCookies, body: recordAnswers({ id: firstRecord.body.record.id }) })).status, 404);
     assert.equal((await recordsRequest({ method, cookies: aliceCookies, body: recordAnswers({ id: "missing-record" }) })).status, 404);
@@ -422,6 +484,13 @@ try {
   assert.equal(objects.size, 1);
   const photoState = (await recordsRequest({ cookies: aliceCookies })).body.records.find((record) => record.id === firstRecord.body.record.id).photo;
   assert.deepEqual(photoState, { recordId: firstRecord.body.record.id });
+  assert.equal((await dashboardRequest({ cookies: aliceCookies })).body.summary.photos, 1);
+  assert.equal((await dashboardRequest({ cookies: bobCookies })).body.summary.photos, 0);
+  const photoExport = await request("", { api: "/api/account/export", cookies: aliceCookies });
+  assert.equal(photoExport.status, 200);
+  assert.equal(photoExport.body.fitRecords.filter((record) => record.photoAttached).length, 1);
+  assert.ok(!JSON.stringify(photoExport.body).includes("objectKey"));
+  assert.equal(objects.size, 1);
   const viewed = await photoRequest("GET");
   assert.equal(viewed.status, 200);
   assert.equal(viewed.headers.get("content-type"), "image/png");
@@ -442,6 +511,98 @@ try {
   assert.equal(objects.size, 0);
   assert.equal((await recordsRequest({ cookies: aliceCookies })).body.records.length, 2);
   console.log("Passed private photo uploads, download, removal, ownership, limits, concurrency, and storage/database failure cleanup.");
+
+  const accountRequest = (options = {}) => request("", { ...options, api: "/api/account" });
+  const sessionsRequest = (options = {}) => request("", { ...options, api: "/api/account/sessions" });
+  const exportRequest = (options = {}) => request("", { ...options, api: "/api/account/export" });
+  assert.match(await (await fetch(`${baseURL}/account`)).text(), /Manage your name, password/);
+  for (const call of [sessionsRequest, exportRequest]) {
+    const guest = await call();
+    assert.equal(guest.status, 401);
+    assert.match(guest.cacheControl, /private.*no-store/);
+  }
+  assert.equal((await accountRequest({ method: "PATCH", body: { name: "Guest" } })).status, 401);
+  for (const origin of [null, "https://example.invalid"]) {
+    assert.equal((await accountRequest({ method: "PATCH", cookies: aliceCookies, origin, body: { name: "Bad origin" } })).status, 403);
+    assert.equal((await sessionsRequest({ method: "POST", cookies: aliceCookies, origin, body: { allOthers: true } })).status, 403);
+  }
+  for (const name of ["", "  ", "x".repeat(101), 123, null]) assert.equal((await accountRequest({ method: "PATCH", cookies: aliceCookies, body: { name } })).status, 400);
+  assert.equal((await accountRequest({ method: "PATCH", cookies: aliceCookies, body: null })).status, 400);
+  const renamed = await accountRequest({ method: "PATCH", cookies: aliceCookies, body: { name: "  Alice 王  ", userId: bob.body.user.id, email: emails[1] } });
+  assert.equal(renamed.status, 200);
+  assert.match(renamed.cacheControl, /private.*no-store/);
+  assert.ok(renamed.setCookies.length);
+  assert.equal((await request("/get-session", { cookies: aliceCookies })).body.user.name, "Alice 王");
+  assert.equal((await request("/get-session", { cookies: bobCookies })).body.user.name, "Bob");
+  const ownSessions = await sessionsRequest({ cookies: aliceCookies });
+  assert.match(ownSessions.cacheControl, /private.*no-store/);
+  assert.equal(ownSessions.body.sessions.length, 1);
+  assert.equal(ownSessions.body.sessions[0].current, true);
+  for (const item of ownSessions.body.sessions) assert.deepEqual(Object.keys(item).sort(), ["createdAt", "current", "expiresAt", "id", "userAgent"]);
+  for (const sessionId of [bobSession.session.id, "missing-session"]) assert.equal((await sessionsRequest({ method: "POST", cookies: aliceCookies, body: { sessionId } })).status, 404);
+  assert.equal((await sessionsRequest({ method: "POST", cookies: aliceCookies, body: { sessionId: aliceSession.session.id } })).status, 400);
+  for (const body of [{}, { allOthers: "true" }, { sessionId: 123 }, { sessionId: "x", allOthers: true }]) assert.equal((await sessionsRequest({ method: "POST", cookies: aliceCookies, body })).status, 400);
+  const secondAliceCookies = new Map();
+  assert.equal((await request("/sign-in/email", { method: "POST", cookies: secondAliceCookies, body: { email: emails[0], password } })).status, 200);
+  const secondAliceSession = (await request("/get-session", { cookies: secondAliceCookies })).body.session;
+  assert.equal((await sessionsRequest({ cookies: aliceCookies })).body.sessions.length, 2);
+  assert.equal((await sessionsRequest({ method: "POST", cookies: aliceCookies, body: { sessionId: secondAliceSession.id } })).status, 200);
+  assert.equal((await sessionsRequest({ cookies: secondAliceCookies })).status, 401);
+  assert.equal((await sessionsRequest({ cookies: aliceCookies })).status, 200);
+  assert.equal((await sessionsRequest({ cookies: bobCookies })).status, 200);
+  assert.equal((await request("/sign-in/email", { method: "POST", cookies: secondAliceCookies, body: { email: emails[0], password } })).status, 200);
+  assert.equal((await sessionsRequest({ method: "POST", cookies: aliceCookies, body: { allOthers: true } })).status, 200);
+  assert.equal((await sessionsRequest({ cookies: secondAliceCookies })).status, 401);
+  const backup = await exportRequest({ cookies: aliceCookies });
+  assert.equal(backup.status, 200);
+  assert.match(backup.cacheControl, /private.*no-store/);
+  assert.equal(backup.disposition, 'attachment; filename="shoe-beta-backup.json"');
+  assert.equal(backup.body.formatVersion, 1);
+  assert.equal(backup.body.account.email, emails[0]);
+  assert.equal(backup.body.profile.width, "WIDE");
+  assert.equal(backup.body.savedShoes.length, 2);
+  assert.equal(backup.body.fitRecords.length, 2);
+  assert.equal(backup.body.fitRecords[0].notes, "Updated fitting");
+  assert.equal(backup.body.fitRecords[0].toeFit, "TIGHT");
+  assert.ok(backup.body.fitRecords.every((record) => !record.photoAttached));
+  const backupText = JSON.stringify(backup.body);
+  for (const forbidden of ["userId", "objectKey", "password", "token", emails[1], bob.body.user.id, "Bob's own fitting"]) assert.ok(!backupText.includes(forbidden));
+  const bobBackup = await request(`?userId=${alice.body.user.id}`, { api: "/api/account/export", cookies: bobCookies });
+  assert.equal(bobBackup.body.account.email, emails[1]);
+  assert.equal(bobBackup.body.fitRecords.length, 1);
+  assert.equal(bobBackup.body.fitRecords[0].notes, "Bob's own fitting");
+  console.log("Passed account naming, private export, safe session payloads, origin checks and owned session revocation.");
+
+  await stop();
+  await start();
+  const carolEmail = `carol-${randomUUID()}@example.test`;
+  emails.push(carolEmail);
+  const carolCookies = new Map();
+  const otherCarolCookies = new Map();
+  assert.equal((await request("/sign-up/email", { method: "POST", cookies: carolCookies, body: { name: "Carol", email: carolEmail, password } })).status, 200);
+  const emptyBackup = await exportRequest({ cookies: carolCookies });
+  assert.equal(emptyBackup.body.profile, null);
+  assert.deepEqual(emptyBackup.body.fitRecords, []);
+  assert.deepEqual(emptyBackup.body.savedShoes, []);
+  assert.equal((await request("/sign-in/email", { method: "POST", cookies: otherCarolCookies, body: { email: carolEmail, password } })).status, 200);
+  const newPassword = "New-climbing-password-456!";
+  for (const origin of [null, "https://example.invalid"]) assert.equal((await request("/change-password", { method: "POST", cookies: carolCookies, origin, body: { currentPassword: password, newPassword, revokeOtherSessions: true } })).status, 403);
+  const incorrectPassword = await request("/change-password", { method: "POST", cookies: carolCookies, body: { currentPassword: "Incorrect-password!", newPassword, revokeOtherSessions: true } });
+  assert.equal(incorrectPassword.status, 400);
+  assert.equal(incorrectPassword.body.code, "INVALID_PASSWORD");
+  assert.equal((await request("/change-password", { method: "POST", cookies: carolCookies, body: { currentPassword: password, newPassword: "short", revokeOtherSessions: true } })).status, 400);
+  assert.equal((await sessionsRequest({ cookies: otherCarolCookies })).status, 200);
+  const oldCarolCookies = new Map(carolCookies);
+  const changedPassword = await request("/change-password", { method: "POST", cookies: carolCookies, body: { currentPassword: password, newPassword, revokeOtherSessions: true } });
+  assert.equal(changedPassword.status, 200);
+  assert.ok(changedPassword.setCookies.length);
+  assert.equal((await sessionsRequest({ cookies: otherCarolCookies })).status, 401);
+  assert.equal((await sessionsRequest({ cookies: oldCarolCookies })).status, 401);
+  assert.equal((await sessionsRequest({ cookies: carolCookies })).body.sessions[0].current, true);
+  assert.equal((await request("/sign-in/email", { method: "POST", body: { email: carolEmail, password } })).status, 401);
+  assert.equal((await request("/sign-in/email", { method: "POST", cookies: otherCarolCookies, body: { email: carolEmail, password: newPassword } })).status, 200);
+  assert.equal((await sessionsRequest({ cookies: bobCookies })).status, 200);
+  console.log("Passed password proof, length and origin rejection, cookie rotation, other-session logout and new-password sign-in.");
 
   const oldAliceCookies = new Map(aliceCookies);
   assert.equal((await request("/sign-out", { method: "POST", cookies: aliceCookies, body: {} })).status, 200);
@@ -470,6 +631,14 @@ try {
   assert.equal((await savedRequest({ cookies: oldAliceCookies })).status, 401);
   assert.equal((await savedRequest({ cookies: aliceCookies })).body.saved.length, 2);
   assert.equal((await savedRequest({ cookies: bobCookies })).status, 401);
+  assert.equal((await dashboardRequest({ cookies: oldAliceCookies })).status, 401);
+  assert.equal((await dashboardRequest({ cookies: bobCookies })).status, 401);
+  for (const cookies of [oldAliceCookies, bobCookies]) {
+    assert.equal((await sessionsRequest({ cookies })).status, 401);
+    assert.equal((await sessionsRequest({ method: "POST", cookies, body: { allOthers: true } })).status, 401);
+    assert.equal((await accountRequest({ method: "PATCH", cookies, body: { name: "Expired" } })).status, 401);
+    assert.equal((await exportRequest({ cookies })).status, 401);
+  }
   console.log("Passed sign-out, wrong-password rejection, sign-in, expiry, and restart persistence.");
 
   await stop();
@@ -495,6 +664,11 @@ try {
   assert.equal((await recordsRequest()).status, 503);
   assert.equal((await fetch(`${baseURL}/shoes`)).status, 200);
   assert.equal((await savedRequest()).status, 503);
+  assert.equal((await dashboardRequest()).status, 503);
+  assert.equal((await sessionsRequest()).status, 503);
+  assert.equal((await sessionsRequest({ method: "POST", body: { allOthers: true } })).status, 503);
+  assert.equal((await accountRequest({ method: "PATCH", body: { name: "Unavailable" } })).status, 503);
+  assert.equal((await exportRequest()).status, 503);
   console.log("Passed missing-secret handling and public catalogue access.");
 } catch (error) {
   console.error(logs);

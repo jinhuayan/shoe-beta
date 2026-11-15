@@ -2,6 +2,24 @@
 
 A climbing-shoe project built with Next.js, TypeScript, Tailwind CSS, and PostgreSQL. The first feature is a read-only shoe catalogue.
 
+## Account settings
+
+Open **Account** in the signed-in header, or visit `/account`, to edit your display name, change your password, manage active sessions, and download your data. Password changes require the current password and sign out other sessions while rotating the current session cookie. Session removal supports one other session or all other sessions, with confirmation; use the header's Sign out for the current session. Browser details are device-reported, not verified device identities.
+
+`PATCH /api/account` trims names and accepts 1–100 characters. `GET /api/account/sessions` returns active sessions without tokens or IP addresses; `POST` accepts `{ "sessionId": "..." }` or `{ "allOthers": true }`. These routes verify the current session, enforce ownership, and check Origin on writes. Password changes use Better Auth's [existing endpoint](https://better-auth.com/docs/authentication/email-password), preserving its password checks and cookie handling.
+
+`GET /api/account/export` downloads a private, uncached JSON file with account details, climbing profile, saved shoes, and fitting records. It includes photo-attached flags, but no photo files, storage keys, credentials, or session data. Download photos separately from the fitting journal. This is a data export; there is no import or restore flow. No migration, dependencies, or new environment variables are needed.
+
+## My climbing overview
+
+`/dashboard` is the signed-in landing page and is linked as **My climbing** in the header. It combines a saved profile, the same rule-based recommendations used by the questionnaire, fitting/model/photo counts, six recent saved shoes, and three recent fittings. Saved shoes show how many fittings exist for that exact shoe ID; this does not imply that it fits. Recommendations use the saved profile only and do not learn from fitting notes.
+
+New accounts get empty states and next-step links to create a profile, browse shoes, find shops and record a fitting. Saving a recommendation shortlist refreshes the overview counts; **Refresh overview** reloads other changes. Existing guest catalogue and questionnaire routes remain available. The profile section is read-only; questionnaire saving remains explicit.
+
+`GET /api/dashboard` verifies the session, ignores request-supplied ownership parameters and applies the session user ID to every private query. Responses are private/no-store. Recent fitting payloads omit notes, area feedback, photo keys and user IDs. Grouped counts avoid fetching the entire fitting journal. Saved-shoe cards are capped at six and recent fittings at three, while summary counts cover the account's full data. The full saved list is loaded for the saved count, then sliced for display; the current catalogue is small. No shared URLs include profile data.
+
+No migration, seed changes or new environment variables are required. Existing credentials and the Vercel connection-pool fix remain in use. Tests cover guest/expired sessions, missing configuration, empty accounts, saved-profile recommendations, caps, private photo counts and cross-account isolation.
+
 ## Private fitting journal
 
 Fit records now include optional toe, forefoot, and heel observations, each using Unsure / Too tight / Comfortable / Too loose. Overall fit remains a separate answer. Existing records default these areas to Unsure; nothing is inferred from notes or overall fit.
@@ -96,7 +114,7 @@ The scripts use Webpack for compatibility with the current development environme
 
 ## Authentication API
 
-[Better Auth](https://better-auth.com/docs/authentication/email-password) handles email/password accounts and database sessions under `/api/auth`. Visitors can register at `/sign-up` or sign in at `/sign-in`; success returns them to the climbing shoe catalogue. The shared header shows the current account and supports sign-out. Registration needs a name, email, and an 8–128 character password. Email verification and password-reset delivery are not configured yet.
+[Better Auth](https://better-auth.com/docs/authentication/email-password) handles email/password accounts and database sessions under `/api/auth`. Visitors can register at `/sign-up` or sign in at `/sign-in`; success returns them to their private My climbing overview. The shared header shows the current account and supports sign-out. Registration needs a name, email, and an 8–128 character password. Email verification and password-reset delivery are not configured yet.
 
 Forms show errors without clearing the entered details, and disable submission while a request is pending. Guests can still browse the catalogue and use the questionnaire. An unavailable account service shows a retry option in the header without blocking guest pages.
 
