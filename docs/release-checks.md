@@ -1,6 +1,6 @@
 # Release checks
 
-Checked on November 14, 2026 (Toronto time). This records what was tested; it is not a deployment approval.
+Initial checks on November 14, 2026; Google Places follow-up on November 15 (Toronto time). This records what was tested; it is not a deployment approval.
 
 ## Production
 
@@ -13,7 +13,7 @@ The initial check used main commit `200dc95d22d5466e7a269d9d695ee3166b26c247` (P
 - Authentication returned a guest session; private APIs rejected unauthenticated requests with 401 and private/no-store cache controls.
 - All 11 database migrations were applied, including fitting session details.
 - Main [CI run](https://github.com/jinhuayan/shoe-beta/actions/runs/43672117620) and previous UI branch [CI run](https://github.com/jinhuayan/shoe-beta/actions/runs/43674457079) passed.
-- Real shop search returned 503, reporting missing configuration. The team added `GOOGLE_PLACES_API_KEY` for Production; a new production deployment and successful live search are still required. Saving a variable does not update a running deployment.
+- After adding `GOOGLE_PLACES_API_KEY` for Production and redeploying, a live Toronto search on November 15 returned HTTP 200 with 10 shops and `demo: false`. Real Google Places connectivity passed.
 
 These checks did not create production accounts, modify fit records or upload photos. Production private write flows and Preview environment settings are not covered by this pass.
 
