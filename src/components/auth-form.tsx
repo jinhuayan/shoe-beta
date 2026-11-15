@@ -1,12 +1,17 @@
 "use client";
 
+import { PageHeader, PageShell } from "@/components/ui/page";
+import { Card } from "@/components/ui/card";
+import { Notice } from "@/components/ui/notice";
+import { Input } from "@/components/ui/controls";
+import { Button } from "@/components/ui/button";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { authClient } from "@/lib/auth-client";
 
-const controlClass = "w-full rounded-lg border border-stone-300 bg-white p-2 focus-visible:outline-2 focus-visible:outline-offset-2";
-const linkClass = "rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2";
+const linkClass = "ui-link";
 
 export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   const signingUp = mode === "sign-up";
@@ -47,35 +52,35 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   }
 
   return (
-    <main className="mx-auto max-w-lg space-y-6 p-6 sm:p-10">
-      <h1 className="text-3xl font-semibold tracking-tight">{signingUp ? "Create an account" : "Sign in"}</h1>
+    <PageShell width="narrow" className="space-y-6">
+      <PageHeader title={signingUp ? "Create an account" : "Sign in"} eyebrow="Your climbing notebook" description={signingUp ? "Keep your climbing profile, saved shoes and fit notes together." : "Welcome back to your shoes and fit notes."} />
       {isPending ? <p role="status" className="text-stone-600">Checking your session…</p> : session ? (
         <p className="break-words text-stone-600">You’re signed in as {session.user.name}.</p>
       ) : (
         <>
-          <form onSubmit={submit} aria-busy={pending}>
+          <Card as="form" onSubmit={submit} aria-busy={pending} className="p-5 sm:p-6">
             <fieldset disabled={pending} className="space-y-4">
-              {error && <p role="alert" tabIndex={-1} ref={(node) => { node?.focus(); }} className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+              {error && <Notice tone="error" role="alert" tabIndex={-1} ref={(node) => { node?.focus(); }}>{error}</Notice>}
               {signingUp && (
                 <div className="space-y-2">
                   <label htmlFor="name" className="block text-sm font-medium">Name</label>
-                  <input id="name" name="name" autoComplete="name" required maxLength={100} className={controlClass} />
+                  <Input id="name" name="name" autoComplete="name" required maxLength={100} />
                 </div>
               )}
               <div className="space-y-2">
                 <label htmlFor="email" className="block text-sm font-medium">Email</label>
-                <input id="email" name="email" type="email" autoComplete="email" required className={controlClass} />
+                <Input id="email" name="email" type="email" autoComplete="email" required />
               </div>
               <div className="space-y-2">
                 <label htmlFor="password" className="block text-sm font-medium">Password</label>
-                <input id="password" name="password" type="password" autoComplete={signingUp ? "new-password" : "current-password"} required minLength={signingUp ? 8 : undefined} maxLength={128} aria-describedby={signingUp ? "password-hint" : undefined} className={controlClass} />
+                <Input id="password" name="password" type="password" autoComplete={signingUp ? "new-password" : "current-password"} required minLength={signingUp ? 8 : undefined} maxLength={128} aria-describedby={signingUp ? "password-hint" : undefined} />
                 {signingUp && <p id="password-hint" className="text-sm text-stone-500">Use 8–128 characters.</p>}
               </div>
-              <button type="submit" disabled={pending} className="rounded-lg bg-stone-900 px-4 py-2 text-white focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60">
+              <Button type="submit" disabled={pending}>
                 {pending ? (signingUp ? "Creating account…" : "Signing in…") : signingUp ? "Create account" : "Sign in"}
-              </button>
+              </Button>
             </fieldset>
-          </form>
+          </Card>
           <p className="text-sm text-stone-600">
             {signingUp ? "Already have an account? " : "New to Shoe Beta? "}
             <Link href={signingUp ? "/sign-in" : "/sign-up"} className={linkClass}>{signingUp ? "Sign in" : "Create an account"}</Link>
@@ -83,6 +88,6 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         </>
       )}
       <Link href="/shoes" className={`inline-block text-sm ${linkClass}`}>{session ? "Back to climbing shoes" : "Browse climbing shoes as a guest"}</Link>
-    </main>
+    </PageShell>
   );
 }

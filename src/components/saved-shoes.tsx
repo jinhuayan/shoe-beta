@@ -1,16 +1,20 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Select } from "@/components/ui/controls";
+
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import { authClient } from "@/lib/auth-client";
 import { comparisonHref } from "@/lib/shoe-comparison";
 import type { SavedShoesData } from "@/lib/saved-shoes";
 
-const linkClass = "rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2";
+const linkClass = "ui-link";
 export function SavedShoes() {
   const { data: session, isPending, error, refetch } = authClient.useSession();
   if (!session && isPending) return <p role="status">Checking account…</p>;
-  if (!session && error) return <p role="alert">Account service is unavailable. <button onClick={() => void refetch()} className={linkClass}>Retry</button></p>;
+  if (!session && error) return <p role="alert">Account service is unavailable. <Button variant="ghost" onClick={() => void refetch()}>Retry</Button></p>;
   if (!session) return <p><Link href="/sign-in" className={linkClass}>Sign in</Link> to save and view your shoes.</p>;
   return <SavedList key={session.user.id} onSessionExpired={refetch} />;
 }
@@ -62,36 +66,36 @@ function SavedList({ onSessionExpired }: { onSessionExpired: () => void }) {
     void mutate("POST", { slugs: [slug] });
   }
   const retry = () => { setError(""); setAttempt((value) => value + 1); };
-  if (!data) return error ? <p role="alert">{error} <button onClick={retry} className={linkClass}>Retry</button></p> : <p role="status">Loading saved shoes…</p>;
+  if (!data) return error ? <p role="alert">{error} <Button variant="ghost" onClick={retry}>Retry</Button></p> : <p role="status">Loading saved shoes…</p>;
   return (
     <div className="space-y-6" aria-busy={pending}>
-      {error && <p role="alert">{error} <button disabled={pending} onClick={retry} className={linkClass}>Reload list</button></p>}
+      {error && <p role="alert">{error} <Button variant="ghost" disabled={pending} onClick={retry}>Reload list</Button></p>}
       {notice && <p role="status">{notice}</p>}
-      <form onSubmit={save} className="flex flex-wrap items-end gap-3 rounded-lg border border-stone-200 p-4">
+      <Card as="form" onSubmit={save} className="flex flex-wrap items-end gap-3 p-4">
         <label className="min-w-0 basis-full space-y-1 sm:flex-1 sm:basis-0"><span className="block text-sm font-medium">Climbing shoe</span>
-          <select name="shoe" required defaultValue="" disabled={pending} className="w-full rounded-lg border border-stone-300 p-2">
+          <Select name="shoe" required defaultValue="" disabled={pending} className="w-full">
             <option value="" disabled>Choose a shoe to save</option>
             {data.shoes.map((shoe) => <option key={shoe.id} value={shoe.slug}>{shoe.brand} {shoe.model}</option>)}
-          </select>
+          </Select>
         </label>
-        <button disabled={pending || !data.shoes.length} className="rounded-lg bg-stone-900 px-4 py-2 text-white disabled:opacity-60">Save shoe</button>
-      </form>
+        <Button disabled={pending || !data.shoes.length}>Save shoe</Button>
+      </Card>
       <div className="flex flex-wrap items-center gap-4">
         <p className="text-sm text-stone-600">{selected.length} of 3 selected</p>
         {selected.length >= 2 ? <Link href={comparisonHref(selected)} className={linkClass}>Compare selected shoes</Link> : <p className="text-sm text-stone-600">Select at least two to compare.</p>}
-        {selected.length > 0 && <button onClick={() => setSelected([])} className={linkClass}>Clear selection</button>}
+        {selected.length > 0 && <Button variant="ghost" onClick={() => setSelected([])}>Clear selection</Button>}
       </div>
       {!data.saved.length ? <p>No saved shoes yet. <Link href="/shoes" className={linkClass}>Browse climbing shoes</Link></p> : (
         <ul className="grid gap-4 sm:grid-cols-2">
-          {data.saved.map(({ shoe }) => <li key={shoe.id} className="space-y-3 rounded-lg border border-stone-200 p-4">
+          {data.saved.map(({ shoe }) => <Card as="li" key={shoe.id} className="space-y-3 p-4">
             <p className="text-sm text-stone-600">{shoe.brand}</p>
             <h2 className="text-xl font-medium"><Link href={`/shoes/${encodeURIComponent(shoe.slug)}`} className={linkClass}>{shoe.model}</Link></h2>
             {shoe.isSample ? <p className="text-sm text-stone-600">This shoe is no longer in the public catalogue.</p> : <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={selected.includes(shoe.slug)} disabled={pending || (!selected.includes(shoe.slug) && selected.length >= 3)} onChange={(event) => setSelected((previous) => event.target.checked ? [...previous, shoe.slug] : previous.filter((slug) => slug !== shoe.slug))} />Select {shoe.brand} {shoe.model} for comparison
             </label>}
             <p><Link href={`/shoes/${encodeURIComponent(shoe.slug)}#my-fittings`} className={linkClass}>Open fitting workspace</Link></p>
-            <button disabled={pending} onClick={() => void mutate("DELETE", { shoeId: shoe.id })} aria-label={`Remove ${shoe.brand} ${shoe.model} from saved shoes`} className={`${linkClass} text-sm disabled:opacity-60`}>Remove from saved shoes</button>
-          </li>)}
+            <Button variant="ghost" disabled={pending} onClick={() => void mutate("DELETE", { shoeId: shoe.id })} aria-label={`Remove ${shoe.brand} ${shoe.model} from saved shoes`}>Remove from saved shoes</Button>
+          </Card>)}
         </ul>
       )}
     </div>

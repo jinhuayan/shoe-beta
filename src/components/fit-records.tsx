@@ -1,5 +1,10 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import { Notice } from "@/components/ui/notice";
+import { Card } from "@/components/ui/card";
+import { Select, Input, Textarea } from "@/components/ui/controls";
+
 import Link from "next/link";
 import { FitJournal } from "@/components/fit-journal";
 import { FitPhotoControls } from "@/components/fit-photo-controls";
@@ -10,13 +15,13 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { authClient } from "@/lib/auth-client";
 import { fitAreaLabels, fitLabels, type FitArea, type FitRecordErrors, type FitRecordList, type SavedFitRecord, type RecordShoe } from "@/lib/fit-records";
 
-const controlClass = "w-full rounded-lg border border-stone-300 bg-white p-2 focus-visible:outline-2 focus-visible:outline-offset-2";
-const linkClass = "rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2";
+const controlClass = "w-full";
+const linkClass = "ui-link";
 
 export function FitRecords({ initialShoeSlug, shoe }: { initialShoeSlug?: string; shoe?: RecordShoe }) {
   const { data: session, isPending, error, refetch } = authClient.useSession();
   if (!session && isPending) return <p role="status">Checking account…</p>;
-  if (!session && error) return <p role="alert">Account service is unavailable. <button type="button" onClick={() => void refetch()} className={linkClass}>Retry</button></p>;
+  if (!session && error) return <p role="alert">Account service is unavailable. <Button variant="ghost" type="button" onClick={() => void refetch()}>Retry</Button></p>;
   if (!session) return <p><Link href="/sign-in" className={linkClass}>Sign in</Link> to save and view your fit records.</p>;
   return <RecordList key={`${session.user.id}:${shoe?.id ?? "all"}`} initialShoeSlug={initialShoeSlug} shoe={shoe} onSessionExpired={refetch} />;
 }
@@ -106,97 +111,97 @@ function RecordList({ initialShoeSlug, shoe, onSessionExpired }: { initialShoeSl
   }
 
   if (!data) return error ? (
-    <p role="alert">{error} <button type="button" onClick={refresh} className={linkClass}>Retry</button></p>
+    <p role="alert">{error} <Button variant="ghost" type="button" onClick={refresh}>Retry</Button></p>
   ) : <p role="status">Loading your fit records…</p>;
 
   const selectedShoe = data.shoes.find((shoe) => shoe.slug === initialShoeSlug)?.id ?? "";
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-stone-600">{shoe ? `Your records for ${shoe.brand} ${shoe.model} only.` : "Your private fitting journal."}</p><button type="button" disabled={saving || loading || !!editing} onClick={refresh} className={`${linkClass} text-sm disabled:opacity-50`}>{loading ? "Refreshing fittings…" : "Refresh fittings"}</button></div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-stone-600">{shoe ? `Your records for ${shoe.brand} ${shoe.model} only.` : "Your private fitting journal."}</p><Button variant="ghost" type="button" disabled={saving || loading || !!editing} onClick={refresh}>{loading ? "Refreshing fittings…" : "Refresh fittings"}</Button></div>
       {shoe && <><p><Link href="/fit-records" className={`${linkClass} text-sm`}>Open your full fitting journal</Link></p><ShoeSizeHistory records={data.records} shoeId={shoe.id} disabled={saving || loading || !!editing} onUseSize={(size) => { setSizeEu(String(size)); setErrors({}); setNotice(`EU ${size} entered in the new fitting form. Your other entries are kept.`); editorHeading.current?.focus(); }} /></>}
-      {error && <p role="alert" tabIndex={-1} ref={(node) => { node?.focus(); }} className="rounded-lg bg-red-50 p-3 text-red-800">{error}</p>}
+      {error && <Notice tone="error" role="alert" tabIndex={-1} ref={(node) => { node?.focus(); }}>{error}</Notice>}
       {notice && <p role="status" className="text-sm text-stone-600">{notice}</p>}
       {data.shoes.length === 0 ? <p className="text-stone-600">No climbing shoes are available to record yet.</p> : (
-        <form key={editing?.id ?? initialShoeSlug ?? "new"} onSubmit={save} noValidate aria-busy={saving} className="rounded-lg border border-stone-200 p-5">
+        <Card as="form" key={editing?.id ?? initialShoeSlug ?? "new"} onSubmit={save} noValidate aria-busy={saving} className="p-5">
           <h2 tabIndex={-1} ref={focusEditor} className="mb-4 text-xl font-semibold">{editing ? "Edit fit record" : "Add a fit record"}</h2>
           <fieldset disabled={saving || loading} className="grid gap-4 sm:grid-cols-2">
-            {Object.keys(errors).length > 0 && <p role="alert" tabIndex={-1} ref={(node) => { node?.focus(); }} className="rounded-lg bg-red-50 p-3 text-red-800 sm:col-span-2">Check the highlighted fields.</p>}
+            {Object.keys(errors).length > 0 && <Notice tone="error" role="alert" tabIndex={-1} ref={(node) => { node?.focus(); }} className="sm:col-span-2">Check the highlighted fields.</Notice>}
             <div className="space-y-2 sm:col-span-2">
               {shoe ? <><p className="text-sm font-medium">Climbing shoe</p><p>{shoe.brand} {shoe.model}</p><input type="hidden" name="shoeId" value={shoe.id} /></> : <><label htmlFor="shoeId" className="block text-sm font-medium">Climbing shoe</label>
-              <select id="shoeId" name="shoeId" required defaultValue={editing?.shoe.id ?? selectedShoe} {...fieldProps("shoeId")}>
+              <Select id="shoeId" name="shoeId" required defaultValue={editing?.shoe.id ?? selectedShoe} {...fieldProps("shoeId")}>
                 <option value="">Choose a shoe</option>
                 {data.shoes.map((shoe) => <option key={shoe.id} value={shoe.id}>{shoe.brand} {shoe.model}{shoe.isSample ? " (sample)" : ""}</option>)}
-              </select>
+              </Select>
               </>}
               {fieldError("shoeId")}
             </div>
             <div className="space-y-2">
               <label htmlFor="sizeEu" className="block text-sm font-medium">EU size worn</label>
-              <input id="sizeEu" name="sizeEu" type="number" value={sizeEu} onChange={(event) => setSizeEu(event.target.value)} min={20} max={55} step={0.5} required {...fieldProps("sizeEu")} />
+              <Input id="sizeEu" name="sizeEu" type="number" value={sizeEu} onChange={(event) => setSizeEu(event.target.value)} min={20} max={55} step={0.5} required {...fieldProps("sizeEu")} />
               <p className="text-sm text-stone-500">Use whole or half sizes, from 20 to 55.</p>
               {fieldError("sizeEu")}
             </div>
             <div className="space-y-2">
               <label htmlFor="fit" className="block text-sm font-medium">Overall fit</label>
-              <select id="fit" name="fit" defaultValue={editing?.fit ?? "UNKNOWN"} {...fieldProps("fit")}>
+              <Select id="fit" name="fit" defaultValue={editing?.fit ?? "UNKNOWN"} {...fieldProps("fit")}>
                 {Object.entries(fitLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </select>
+              </Select>
               {fieldError("fit")}
             </div>
-            <fieldset className="grid gap-3 rounded-lg border border-stone-200 p-3 sm:col-span-2 sm:grid-cols-3">
+            <Card as="fieldset" className="grid gap-3 p-3 sm:col-span-2 sm:grid-cols-3">
               <legend className="px-1 text-sm font-medium">Fit by area (optional)</legend>
               {Object.entries(fitAreaLabels).map(([name, label]) => <div key={name} className="min-w-0 space-y-2">
                 <label htmlFor={name} className="block text-sm font-medium">{label}</label>
-                <select id={name} name={name} defaultValue={editing?.[name as FitArea] ?? "UNKNOWN"} {...fieldProps(name as FitArea)}>
+                <Select id={name} name={name} defaultValue={editing?.[name as FitArea] ?? "UNKNOWN"} {...fieldProps(name as FitArea)}>
                   {Object.entries(fitLabels).map(([value, text]) => <option key={value} value={value}>{text}</option>)}
-                </select>
+                </Select>
                 {fieldError(name as FitArea)}
               </div>)}
-            </fieldset>
+            </Card>
             <div className="space-y-2">
               <label htmlFor="rating" className="block text-sm font-medium">Rating (optional)</label>
-              <select id="rating" name="rating" defaultValue={editing?.rating ?? ""} {...fieldProps("rating")}>
+              <Select id="rating" name="rating" defaultValue={editing?.rating ?? ""} {...fieldProps("rating")}>
                 <option value="">Not rated</option>
                 {[1, 2, 3, 4, 5].map((rating) => <option key={rating} value={rating}>{rating} / 5</option>)}
-              </select>
+              </Select>
               {fieldError("rating")}
             </div>
-            <fieldset className="grid gap-4 rounded-lg border border-stone-200 p-3 sm:col-span-2 sm:grid-cols-2">
+            <Card as="fieldset" className="grid gap-4 p-3 sm:col-span-2 sm:grid-cols-2">
               <legend className="px-1 text-sm font-medium">About this fitting (optional)</legend>
               <p className="text-sm text-stone-500 sm:col-span-2">Record what you remember. A shop or gym name is enough; leave missing details blank.</p>
               <div className="min-w-0 space-y-2">
                 <label htmlFor="triedOn" className="block text-sm font-medium">Date tried (optional)</label>
-                <input id="triedOn" name="triedOn" type="date" min="1900-01-01" max="2099-12-31" defaultValue={editing?.triedOn ?? ""} {...fieldProps("triedOn")} />
+                <Input id="triedOn" name="triedOn" type="date" min="1900-01-01" max="2099-12-31" defaultValue={editing?.triedOn ?? ""} {...fieldProps("triedOn")} />
                 {fieldError("triedOn")}
               </div>
               <div className="min-w-0 space-y-2">
                 <label htmlFor="location" className="block text-sm font-medium">Location (optional)</label>
-                <input id="location" name="location" type="text" autoComplete="off" maxLength={120} defaultValue={editing?.location ?? ""} {...fieldProps("location")} />
+                <Input id="location" name="location" type="text" autoComplete="off" maxLength={120} defaultValue={editing?.location ?? ""} {...fieldProps("location")} />
                 {fieldError("location")}
               </div>
               <div className="min-w-0 space-y-2">
                 <label htmlFor="shoeCondition" className="block text-sm font-medium">Shoe condition (optional)</label>
-                <select id="shoeCondition" name="shoeCondition" defaultValue={editing?.shoeCondition ?? "UNKNOWN"} {...fieldProps("shoeCondition")}>{Object.entries(shoeConditionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+                <Select id="shoeCondition" name="shoeCondition" defaultValue={editing?.shoeCondition ?? "UNKNOWN"} {...fieldProps("shoeCondition")}>{Object.entries(shoeConditionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select>
                 {fieldError("shoeCondition")}
               </div>
               <div className="min-w-0 space-y-2">
                 <label htmlFor="durationMinutes" className="block text-sm font-medium">Time worn in minutes (optional)</label>
-                <input id="durationMinutes" name="durationMinutes" type="number" min={1} max={1440} step={1} defaultValue={editing?.durationMinutes ?? ""} {...fieldProps("durationMinutes")} />
+                <Input id="durationMinutes" name="durationMinutes" type="number" min={1} max={1440} step={1} defaultValue={editing?.durationMinutes ?? ""} {...fieldProps("durationMinutes")} />
                 {fieldError("durationMinutes")}
               </div>
-            </fieldset>
+            </Card>
             <div className="space-y-2 sm:col-span-2">
               <label htmlFor="notes" className="block text-sm font-medium">Notes (optional)</label>
-              <textarea id="notes" name="notes" rows={3} maxLength={1000} defaultValue={editing?.notes ?? ""} {...fieldProps("notes")} />
+              <Textarea id="notes" name="notes" rows={3} maxLength={1000} defaultValue={editing?.notes ?? ""} {...fieldProps("notes")} />
               <p className="text-sm text-stone-500">Up to 1,000 characters.</p>
               {fieldError("notes")}
             </div>
             <div className="flex flex-wrap gap-3 sm:col-span-2">
-              <button type="submit" disabled={saving || loading} className="rounded-lg bg-stone-900 px-4 py-2 text-white focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60">{saving ? "Please wait…" : editing ? "Save changes" : "Save fit record"}</button>
-              {editing && <button type="button" onClick={() => { setEditing(null); setSizeEu(""); setErrors({}); setError(""); setNotice(""); }} className={linkClass}>Cancel editing</button>}
+              <Button type="submit" disabled={saving || loading}>{saving ? "Please wait…" : editing ? "Save changes" : "Save fit record"}</Button>
+              {editing && <Button variant="ghost" type="button" onClick={() => { setEditing(null); setSizeEu(""); setErrors({}); setError(""); setNotice(""); }}>Cancel editing</Button>}
             </div>
           </fieldset>
-        </form>
+        </Card>
       )}
       <FitJournal records={data.records} singleShoe={!!shoe} disabled={saving || loading} renderRecord={(record) => (
         <article className="space-y-3">
@@ -215,14 +220,14 @@ function RecordList({ initialShoeSlug, shoe, onSessionExpired }: { initialShoeSl
           <p className="text-sm text-stone-500">Added <time dateTime={record.createdAt}>{new Date(record.createdAt).toLocaleDateString("en-CA")}</time></p>
           <FitPhotoControls recordId={record.id} hasPhoto={!!record.photo} disabled={saving || loading} onSessionExpired={onSessionExpired} onChange={(hasPhoto) => setData((previous) => previous ? { ...previous, records: previous.records.map((item) => item.id === record.id ? { ...item, photo: hasPhoto ? { recordId: record.id } : null } : item) } : previous)} />
           <div className="flex flex-wrap items-center gap-4">
-            <button type="button" disabled={saving || loading} onClick={() => { setEditing(record); setSizeEu(String(record.sizeEu)); setDeleteId(null); setErrors({}); setError(""); setNotice(""); }} className={linkClass}>Edit</button>
+            <Button variant="ghost" type="button" disabled={saving || loading} onClick={() => { setEditing(record); setSizeEu(String(record.sizeEu)); setDeleteId(null); setErrors({}); setError(""); setNotice(""); }}>Edit</Button>
             {deleteId === record.id ? (
               <>
                 <p className="text-sm text-stone-600">Delete this fit record? This cannot be undone.</p>
-                <button type="button" disabled={saving || loading} onClick={() => void remove(record.id)} className={`${linkClass} text-red-700`}>Confirm delete</button>
-                <button type="button" disabled={saving || loading} onClick={() => setDeleteId(null)} className={linkClass}>Cancel deletion</button>
+                <Button variant="danger" type="button" disabled={saving || loading} onClick={() => void remove(record.id)}>Confirm delete</Button>
+                <Button variant="ghost" type="button" disabled={saving || loading} onClick={() => setDeleteId(null)}>Cancel deletion</Button>
               </>
-            ) : <button type="button" disabled={saving || loading} onClick={() => setDeleteId(record.id)} className={`${linkClass} text-red-700`}>Delete</button>}
+            ) : <Button variant="danger" type="button" disabled={saving || loading} onClick={() => setDeleteId(record.id)}>Delete</Button>}
           </div>
         </article>
       )} />

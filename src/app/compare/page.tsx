@@ -1,3 +1,8 @@
+import { PageHeader, PageShell } from "@/components/ui/page";
+import { Notice } from "@/components/ui/notice";
+import { Card } from "@/components/ui/card";
+import { Select } from "@/components/ui/controls";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { getSizingGuide } from "@/lib/shoe-sizing";
 import { connection } from "next/server";
@@ -6,7 +11,7 @@ import { comparisonAttributes, comparisonHref, comparisonLimit, differingAttribu
 import { CopyComparisonLink } from "@/components/copy-comparison-link";
 
 export const metadata = { title: "Compare climbing shoes | Shoe Beta", robots: { index: false } };
-const linkClass = "rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2";
+const linkClass = "ui-link";
 
 export default async function ComparePage({ searchParams }: { searchParams: Promise<ComparisonSearch> }) {
   await connection();
@@ -18,36 +23,32 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   const attributes = selection.differences ? differingAttributes(shoes) : comparisonAttributes;
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 p-6 sm:p-10">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Compare climbing shoes</h1>
-        <p className="text-stone-600">Choose up to three shoes to compare their catalogue details. Try them on to check fit.</p>
-        <Link href="/shoes" className={linkClass}>Browse the catalogue</Link>
-      </header>
-      {(selection.adjusted || shoes.length !== selection.slugs.length) && <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Some selections were skipped. Choose up to three different shoes currently in the public catalogue.</p>}
-      <form key={href} action="/compare" method="get" className="grid gap-4 rounded-lg border border-stone-200 p-4 sm:grid-cols-3">
+    <PageShell width="wide" className="space-y-6">
+      <PageHeader title="Compare climbing shoes" eyebrow="Shoe Beta" description="Choose up to three shoes to compare their catalogue details. Try them on to check fit."><Link href="/shoes" className={linkClass}>Browse the catalogue</Link></PageHeader>
+      {(selection.adjusted || shoes.length !== selection.slugs.length) && <Notice tone="warning" role="status">Some selections were skipped. Choose up to three different shoes currently in the public catalogue.</Notice>}
+      <Card as="form" key={href} action="/compare" method="get" className="grid gap-4 p-4 sm:grid-cols-3">
         {Array.from({ length: comparisonLimit }, (_, i) => (
           <label key={i} className="min-w-0 space-y-1">
             <span className="block text-sm font-medium">Shoe {i + 1}</span>
-            <select name="shoe" defaultValue={slugs[i] ?? ""} className="w-full min-w-0 rounded-lg border border-stone-300 px-3 py-2">
+            <Select name="shoe" defaultValue={slugs[i] ?? ""} className="w-full min-w-0">
               <option value="">Choose a shoe</option>
               {catalogue.map((shoe) => <option key={shoe.slug} value={shoe.slug}>{shoe.brand} {shoe.model}</option>)}
-            </select>
+            </Select>
           </label>
         ))}
         <label className="flex items-center gap-2 text-sm sm:col-span-3">
           <input type="checkbox" name="differences" value="1" defaultChecked={selection.differences} /> Show only differing attributes
         </label>
         <div className="flex flex-wrap items-center gap-4 sm:col-span-3">
-          <button disabled={!catalogue.length} className="rounded-lg bg-stone-900 px-4 py-2 text-white focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60">Compare shoes</button>
+          <Button disabled={!catalogue.length}>Compare shoes</Button>
           <Link href="/compare" className={linkClass}>Clear comparison</Link>
         </div>
-      </form>
+      </Card>
       {!catalogue.length ? <p>No climbing shoes have been added yet.</p> : shoes.length < 2 ? <p role="status">Choose at least two different shoes to see a comparison.</p> : null}
       {shoes.length > 0 && (
         <>
           <p id="comparison-help" className="text-sm text-stone-600">Unknown means unverified, not a match. Identical labels do not guarantee identical fit. These details do not estimate shoe size. On smaller screens, scroll the table sideways.</p>
-          <div tabIndex={0} role="region" aria-label="Shoe comparison table" aria-describedby="comparison-help" className="overflow-x-auto rounded-lg border border-stone-200 focus-visible:outline-2 focus-visible:outline-offset-2">
+          <Card tabIndex={0} role="region" aria-label="Shoe comparison table" aria-describedby="comparison-help" className="overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2">
             <table className="w-full min-w-[40rem] border-collapse text-left text-sm">
               <caption className="sr-only">Catalogue attributes for {shoes.map((shoe) => `${shoe.brand} ${shoe.model}`).join(", ")}</caption>
               <thead>
@@ -82,12 +83,12 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
                 </tr>
               </tbody>
             </table>
-          </div>
+          </Card>
           {selection.differences && !attributes.length && <p role="status">No differing catalogue attributes are listed for these selections. Unknown values may hide real differences.</p>}
           <CopyComparisonLink key={href} href={href} />
           <p className="text-sm text-stone-600">The shared link includes shoe selections and the table view only. Your profile and private fit records are not included.</p>
         </>
       )}
-    </main>
+    </PageShell>
   );
 }

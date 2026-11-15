@@ -1,13 +1,15 @@
 "use client";
 
+import { Card } from "@/components/ui/card";
+import { Input, Select } from "@/components/ui/controls";
+import { Button } from "@/components/ui/button";
+
 import { useState, type ReactNode } from "react";
 import { fitLabels, type SavedFitRecord } from "@/lib/fit-records";
 import { emptyJournalFilters, filterFitRecords, journalDateError, selectedFitRecords, summarizeFitRecords, type JournalFilters } from "@/lib/fit-journal";
 import { shoeConditionLabels } from "@/lib/fitting-context";
 import { FitRecordComparison } from "@/components/fit-record-comparison";
 
-const controlClass = "w-full min-w-0 rounded-lg border border-stone-300 bg-white p-2";
-const linkClass = "rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2";
 export function FitJournal({ records, disabled, singleShoe = false, renderRecord }: { records: SavedFitRecord[]; disabled: boolean; singleShoe?: boolean; renderRecord: (record: SavedFitRecord) => ReactNode }) {
   const [filters, setFilters] = useState<JournalFilters>(emptyJournalFilters);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -20,34 +22,34 @@ export function FitJournal({ records, disabled, singleShoe = false, renderRecord
   return (
     <section className="space-y-4" aria-labelledby="records-heading">
       <h2 id="records-heading" className="text-xl font-semibold">{singleShoe ? "Your fittings for this shoe" : "Saved records"}</h2>
-      <dl className="grid grid-cols-3 gap-3 rounded-lg bg-stone-50 p-4 text-sm">
+      <dl className="journal-summary grid gap-3 rounded-lg bg-stone-50 p-4 text-sm">
         <div><dt>All fittings</dt><dd className="mt-1 text-xl font-semibold">{summary.total}</dd></div>
         <div><dt>{singleShoe ? "EU sizes tried" : "Shoe models"}</dt><dd className="mt-1 text-xl font-semibold">{singleShoe ? new Set(records.map((record) => record.sizeEu)).size : summary.models}</dd></div>
         <div><dt>Comfortable overall</dt><dd className="mt-1 text-xl font-semibold">{summary.comfortable}</dd></div>
       </dl>
       {!records.length ? <p className="text-stone-600">No fit records yet.</p> : <>
-        <div className="grid gap-4 rounded-lg border border-stone-200 p-4 sm:grid-cols-2">
-          <label className="min-w-0 space-y-1 sm:col-span-2"><span className="block text-sm font-medium">Search shoe, location or notes</span><input type="search" maxLength={100} value={filters.query} onChange={(event) => change("query", event.target.value)} className={controlClass} /></label>
-          {!singleShoe && <label className="min-w-0 space-y-1"><span className="block text-sm font-medium">Filter by shoe</span><select value={filters.shoeId} onChange={(event) => change("shoeId", event.target.value)} className={controlClass}><option value="">All shoes</option>{shoes.map((shoe) => <option key={shoe.id} value={shoe.id}>{shoe.brand} {shoe.model}</option>)}</select></label>}
-          <label className="min-w-0 space-y-1"><span className="block text-sm font-medium">Filter by overall fit</span><select value={filters.fit} onChange={(event) => change("fit", event.target.value)} className={controlClass}><option value="">All fits</option>{Object.entries(fitLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-          <label className="min-w-0 space-y-1"><span className="block text-sm font-medium">Photo filter</span><select value={filters.photo} onChange={(event) => change("photo", event.target.value)} className={controlClass}><option value="">All records</option><option value="with">With photo</option><option value="without">Without photo</option></select></label>
-          <label className="min-w-0 space-y-1"><span className="block text-sm font-medium">Sort records</span><select value={filters.sort} onChange={(event) => change("sort", event.target.value)} className={controlClass}><option value="newest">Recently added</option><option value="oldest">Oldest added</option><option value="tried-newest">Most recently tried</option><option value="tried-oldest">Earliest tried</option><option value="rating">Highest rating</option><option value="size">Smallest EU size</option></select></label>
-          <label className="min-w-0 space-y-1"><span className="block text-sm font-medium">Tried from</span><input type="date" min="1900-01-01" max="2099-12-31" value={filters.dateFrom} onChange={(event) => change("dateFrom", event.target.value)} aria-invalid={!!dateError} aria-describedby={dateError ? "journal-date-error" : undefined} className={controlClass} /></label>
-          <label className="min-w-0 space-y-1"><span className="block text-sm font-medium">Tried through</span><input type="date" min="1900-01-01" max="2099-12-31" value={filters.dateTo} onChange={(event) => change("dateTo", event.target.value)} aria-invalid={!!dateError} aria-describedby={dateError ? "journal-date-error" : undefined} className={controlClass} /></label>
-          <label className="min-w-0 space-y-1"><span className="block text-sm font-medium">Filter by shoe condition</span><select value={filters.condition} onChange={(event) => change("condition", event.target.value)} className={controlClass}><option value="">All conditions</option>{Object.entries(shoeConditionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <Card className="grid gap-4 p-4 sm:grid-cols-2">
+          <label className="min-w-0 space-y-1 sm:col-span-2"><span className="block text-sm font-medium">Search shoe, location or notes</span><Input type="search" maxLength={100} value={filters.query} onChange={(event) => change("query", event.target.value)} /></label>
+          {!singleShoe && <label className="min-w-0 space-y-1"><span className="block text-sm font-medium">Filter by shoe</span><Select value={filters.shoeId} onChange={(event) => change("shoeId", event.target.value)}><option value="">All shoes</option>{shoes.map((shoe) => <option key={shoe.id} value={shoe.id}>{shoe.brand} {shoe.model}</option>)}</Select></label>}
+          <label className="min-w-0 space-y-1"><span className="block text-sm font-medium">Filter by overall fit</span><Select value={filters.fit} onChange={(event) => change("fit", event.target.value)}><option value="">All fits</option>{Object.entries(fitLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label>
+          <label className="min-w-0 space-y-1"><span className="block text-sm font-medium">Photo filter</span><Select value={filters.photo} onChange={(event) => change("photo", event.target.value)}><option value="">All records</option><option value="with">With photo</option><option value="without">Without photo</option></Select></label>
+          <label className="min-w-0 space-y-1"><span className="block text-sm font-medium">Sort records</span><Select value={filters.sort} onChange={(event) => change("sort", event.target.value)}><option value="newest">Recently added</option><option value="oldest">Oldest added</option><option value="tried-newest">Most recently tried</option><option value="tried-oldest">Earliest tried</option><option value="rating">Highest rating</option><option value="size">Smallest EU size</option></Select></label>
+          <label className="min-w-0 space-y-1"><span className="block text-sm font-medium">Tried from</span><Input type="date" min="1900-01-01" max="2099-12-31" value={filters.dateFrom} onChange={(event) => change("dateFrom", event.target.value)} aria-invalid={!!dateError} aria-describedby={dateError ? "journal-date-error" : undefined} /></label>
+          <label className="min-w-0 space-y-1"><span className="block text-sm font-medium">Tried through</span><Input type="date" min="1900-01-01" max="2099-12-31" value={filters.dateTo} onChange={(event) => change("dateTo", event.target.value)} aria-invalid={!!dateError} aria-describedby={dateError ? "journal-date-error" : undefined} /></label>
+          <label className="min-w-0 space-y-1"><span className="block text-sm font-medium">Filter by shoe condition</span><Select value={filters.condition} onChange={(event) => change("condition", event.target.value)}><option value="">All conditions</option>{Object.entries(shoeConditionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label>
           {dateError && <p id="journal-date-error" role="alert" className="text-sm text-red-700 sm:col-span-2">{dateError}</p>}
           {(filters.dateFrom || filters.dateTo) && <p className="text-sm text-stone-500 sm:col-span-2">Date filters use the reported date tried, including both endpoints. Records without a date are excluded.</p>}
-          <button type="button" onClick={() => setFilters(emptyJournalFilters)} className={`${linkClass} justify-self-start`}>Clear filters</button>
-        </div>
+          <Button variant="ghost" type="button" onClick={() => setFilters(emptyJournalFilters)} className="justify-self-start">Clear filters</Button>
+        </Card>
         <p role="status" className="text-sm text-stone-600">Showing {visible.length} of {records.length} records. {selected.length} of 3 selected for comparison.</p>
         <p className="text-sm text-stone-600">Select two or three fittings below. Selections stay when filtering; searches and selections are not saved or added to the URL.</p>
-        {selected.length > 0 && <button type="button" onClick={() => setSelectedIds([])} className={linkClass}>Clear comparison selection</button>}
+        {selected.length > 0 && <Button variant="ghost" type="button" onClick={() => setSelectedIds([])}>Clear comparison selection</Button>}
         <FitRecordComparison records={selected} />
         {!visible.length ? <p className="rounded-lg border border-stone-200 p-4">No fit records match these filters.</p> : <ul className="space-y-4">
-          {visible.map((record) => <li key={record.id} className="space-y-4 rounded-lg border border-stone-200 p-5">
+          {visible.map((record) => <Card as="li" key={record.id} className="space-y-4 p-5">
             <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={selected.some((item) => item.id === record.id)} disabled={disabled || (selected.length >= 3 && !selected.some((item) => item.id === record.id))} onChange={(event) => setSelectedIds(event.target.checked ? [...selected.map((item) => item.id), record.id] : selected.filter((item) => item.id !== record.id).map((item) => item.id))} />Compare {record.shoe.brand} {record.shoe.model}, EU {record.sizeEu}</label>
             {renderRecord(record)}
-          </li>)}
+          </Card>)}
         </ul>}
       </>}
     </section>

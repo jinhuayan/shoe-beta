@@ -1,10 +1,12 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+
 import { useState, type FormEvent } from "react";
 import { maxPhotoSize } from "@/lib/photo-validation";
 
 type Props = { recordId: string; hasPhoto: boolean; disabled: boolean; onChange: (hasPhoto: boolean) => void; onSessionExpired: () => void };
-const linkClass = "rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60";
+const linkClass = "ui-link";
 
 export function FitPhotoControls({ recordId, hasPhoto, disabled, onChange, onSessionExpired }: Props) {
   const [pending, setPending] = useState(false);
@@ -49,16 +51,16 @@ export function FitPhotoControls({ recordId, hasPhoto, disabled, onChange, onSes
           <a href={`${url}?download=1`} className={linkClass}>Download photo</a>
           {confirming ? <>
             <span>Remove this photo? This cannot be undone.</span>
-            <button type="button" disabled={busy} onClick={() => { if (!busy) void transfer("DELETE"); }} className={`${linkClass} text-red-700`}>Confirm removal</button>
-            <button type="button" disabled={busy} onClick={() => setConfirming(false)} className={linkClass}>Cancel removal</button>
-          </> : <button type="button" disabled={busy} onClick={() => { setConfirming(true); setNotice(""); }} className={linkClass}>Remove photo</button>}
+            <Button variant="danger" type="button" disabled={busy} onClick={() => { if (!busy) void transfer("DELETE"); }}>Confirm removal</Button>
+            <Button variant="ghost" type="button" disabled={busy} onClick={() => setConfirming(false)}>Cancel removal</Button>
+          </> : <Button variant="ghost" type="button" disabled={busy} onClick={() => { setConfirming(true); setNotice(""); }}>Remove photo</Button>}
         </div>
       ) : (
         <form onSubmit={upload} className="space-y-2">
           <label htmlFor={`photo-${recordId}`} className="block text-sm font-medium">Photo (optional)</label>
           <input id={`photo-${recordId}`} type="file" name="photo" accept="image/jpeg,image/png" disabled={busy} aria-describedby={`photo-hint-${recordId}`} className="block w-full min-w-0 text-sm file:mr-3 file:rounded-lg file:border file:border-stone-300 file:bg-white file:px-3 file:py-2" />
           <p id={`photo-hint-${recordId}`} className="text-sm text-stone-500">One JPEG or PNG, up to 2 MiB.</p>
-          <button type="submit" disabled={busy} className={linkClass}>Upload photo</button>
+          <Button variant="ghost" type="submit" disabled={busy}>Upload photo</Button>
         </form>
       )}
       {pending && <p role="status" className="text-sm text-stone-500">Updating photo…</p>}

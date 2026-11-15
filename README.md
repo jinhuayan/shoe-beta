@@ -2,6 +2,14 @@
 
 A climbing-shoe project built with Next.js, TypeScript, Tailwind CSS, and PostgreSQL. The first feature is a read-only shoe catalogue.
 
+## Shared UI
+
+Pages share `PageShell`/`PageHeader`, `Card`, `Button`, native form-control wrappers and `Notice` components under `src/components/ui`. Colors, spacing, focus styles and responsive navigation live in `globals.css`. The interface uses system fonts and a local SVG brand mark, with no remote font or image requests.
+
+[Radix UI Collapsible](https://www.radix-ui.com/primitives/docs/components/collapsible) provides the mobile navigation disclosure, and [Slot](https://www.radix-ui.com/primitives/docs/utilities/slot) lets the shared Button style links without nesting interactive elements. Below 1024px, navigation and account actions are available through Menu. Escape closes it and returns focus to the trigger; choosing a navigation link closes it. The active route is marked, and Skip to content targets each page's main region.
+
+Buttons and text/select controls have a minimum 44px height, mobile text fields use 16px text, and comparison tables scroll within their labelled regions. The fitting summary stacks below 400px. Forms preserve native input types, names, labels, validation, disabled states and submission behavior. This UI pass adds no business features, API changes, migrations or environment variables. Install the updated lockfile with `npm ci`.
+
 ## Fitting dates and context
 
 Fitting forms now include optional date tried, a manually entered location (up to 120 characters), shoe condition (new/not broken in, already broken in, or not recorded), and time worn (1–1,440 whole minutes). These details appear in the full journal, shoe workspace, private record comparisons and account JSON export. Dashboard cards show the reported fitting date and location; its recent list still means recently added records.
