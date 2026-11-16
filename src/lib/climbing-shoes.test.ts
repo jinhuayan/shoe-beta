@@ -19,14 +19,22 @@ test("combines keyword tokens, brand and attributes while excluding samples", ()
 });
 
 test("seed entries have unique identities and dated manufacturer sources without invented fit data", () => {
-  assert.equal(catalogue.length, 20);
+  assert.equal(catalogue.length, 40);
+  const sources = new Map([
+    ["SCARPA", "us.scarpa.com"], ["La Sportiva", "www.lasportivausa.com"],
+    ["Evolv", "www.evolvsports.com"], ["Tenaya", "tenaya.net"],
+    ["Mad Rock", "madrock.com"], ["Unparallel", "www.unparallelsports.com"],
+  ]);
+  assert.deepEqual(new Set(catalogue.map((shoe) => shoe.brand)), new Set(sources.keys()));
   assert.equal(new Set(catalogue.map((shoe) => shoe.slug)).size, catalogue.length);
   for (const shoe of catalogue) {
     const source = new URL(shoe.sourceUrl);
     assert.equal(source.protocol, "https:");
-    assert.equal(source.hostname, shoe.brand === "SCARPA" ? "us.scarpa.com" : "www.lasportivausa.com");
-    assert.ok(source.pathname.startsWith("/products/"));
-    assert.equal(shoe.sourceCheckedAt.toISOString(), "2026-11-13T00:00:00.000Z");
+    assert.equal(source.hostname, sources.get(shoe.brand));
+    assert.ok(source.pathname !== "/" && !source.search && !source.hash && !source.username && !source.password);
+    assert.match(shoe.slug, /^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+    const date = ["SCARPA", "La Sportiva"].includes(shoe.brand) ? "2026-11-13" : "2026-11-15";
+    assert.equal(shoe.sourceCheckedAt.toISOString(), `${date}T00:00:00.000Z`);
     assert.equal(shoe.isSample, false);
     assert.equal(shoe.width, "UNKNOWN");
     assert.equal(shoe.heelVolume, "UNKNOWN");

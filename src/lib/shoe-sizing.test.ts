@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { evaluateSizing, getSizeReference, getSizingGuide } from "./shoe-sizing";
+import { catalogue } from "../../prisma/catalogue";
 
 const profile = { streetSizeEu: 40, fitPreference: "PERFORMANCE" } as const;
 const shoe = { slug: "scarpa-instinct-vsr", isSample: false };
@@ -29,6 +30,15 @@ test("does not invent rules for samples, unknown models or ambiguous source unit
 test("requires a valid EU baseline instead of converting foot length or rounding inputs", () => {
   for (const streetSizeEu of [null, NaN, Infinity, 19.5, 55.5, 40.25]) assert.equal(getSizeReference(shoe, { ...profile, streetSizeEu }).status, "unavailable");
   assert.match(getSizeReference(shoe, { ...profile, streetSizeEu: null }).explanation, /Foot length alone/);
+});
+
+test("new catalogue brands do not inherit another model's numeric sizing rule", () => {
+  for (const candidate of catalogue.filter((shoe) => !["SCARPA", "La Sportiva"].includes(shoe.brand))) {
+    const result = getSizeReference(candidate, profile);
+    assert.equal(result.status, "unavailable");
+    assert.deepEqual(result.sizes, []);
+    assert.equal(result.guide, null);
+  }
 });
 
 test("respects offered size bounds and whole-size-only sections without clamping", () => {

@@ -36,3 +36,13 @@ npm run test:smoke -- https://shoe-beta-one.vercel.app --shops
 ```
 
 The second command makes one real Places request. Inspect the production deployment and runtime logs if it fails. Keep API keys and connection strings out of logs and Git.
+
+## Catalogue expansion
+
+Local checks on November 15, 2026 covered 40 models across six brands. The original 20 definitions and their November 13 review dates were preserved; the 20 new entries have November 15 review dates and official product sources.
+
+- An isolated database upgrade added 20 missing shoes while preserving existing IDs and an edited description. Another seed run inserted zero rows and left the catalogue unchanged.
+- New-brand filters and details loaded with source dates and explicit unavailable sizing guidance.
+- All 62 unit tests, lint, the production build, and the auth/API integration suite passed.
+
+This check did not seed the production database. Apply the updated seed separately to make the new brands visible there; no new migration is needed.

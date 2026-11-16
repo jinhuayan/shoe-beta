@@ -167,13 +167,22 @@ try {
   await pool.query('INSERT INTO "Shoe" (id, slug, brand, model, "isSample") VALUES ($1, $2, $3, $4, true)', [fitShoeId, fitShoeId, "Fit test", "Climbing shoe"]);
   const seed = () => execFileSync("npm", ["run", "db:seed"], { cwd: project, env, stdio: "inherit" });
   seed();
+  const upgradeCatalogue = !shoesBefore?.length;
+  if (upgradeCatalogue) {
+    const removed = await pool.query('DELETE FROM "Shoe" WHERE brand = ANY($1::text[])', [["Evolv", "Tenaya", "Mad Rock", "Unparallel"]]);
+    assert.equal(removed.rowCount, 20);
+  }
   const catalogueBefore = (await pool.query('SELECT * FROM "Shoe" ORDER BY id')).rows;
   const drago = catalogueBefore.find((shoe) => shoe.slug === "scarpa-drago");
   assert.ok(drago?.sourceUrl);
   await pool.query('UPDATE "Shoe" SET description = $1 WHERE id = $2', ["Edited catalogue description", drago.id]);
   seed();
   const catalogueAfter = (await pool.query('SELECT * FROM "Shoe" ORDER BY id')).rows;
-  assert.deepEqual(catalogueAfter, catalogueBefore.map((shoe) => shoe.id === drago.id ? { ...shoe, description: "Edited catalogue description" } : shoe));
+  const existingIds = new Set(catalogueBefore.map((shoe) => shoe.id));
+  assert.equal(catalogueAfter.length, catalogueBefore.length + (upgradeCatalogue ? 20 : 0));
+  assert.deepEqual(catalogueAfter.filter((shoe) => existingIds.has(shoe.id)), catalogueBefore.map((shoe) => shoe.id === drago.id ? { ...shoe, description: "Edited catalogue description" } : shoe));
+  seed();
+  assert.deepEqual((await pool.query('SELECT * FROM "Shoe" ORDER BY id')).rows, catalogueAfter);
   await pool.query('UPDATE "Shoe" SET description = $1 WHERE id = $2', [drago.description, drago.id]);
   await start();
   const cataloguePage = await (await fetch(`${baseURL}/shoes`)).text();
@@ -184,6 +193,14 @@ try {
   assert.ok(filteredPage.includes("/shoes/la-sportiva-solution?"));
   assert.ok(!filteredPage.includes("/shoes/scarpa-drago"));
   assert.ok(!filteredPage.includes("/shoes/la-sportiva-solution-comp"));
+  for (const [brand, slug] of [["Evolv", "evolv-rave"], ["Tenaya", "tenaya-oasi"], ["Mad Rock", "mad-rock-remora-hv"], ["Unparallel", "unparallel-up-mocc"]]) {
+    const page = await (await fetch(`${baseURL}/shoes?brand=${encodeURIComponent(brand)}`)).text();
+    assert.ok(page.includes(`/shoes/${slug}?`));
+    assert.ok(!page.includes("/shoes/scarpa-drago"));
+    const detail = await (await fetch(`${baseURL}/shoes/${slug}`)).text();
+    assert.ok(detail.includes("2026-11-15"));
+    assert.match(detail, /No verified model-specific sizing guidance/);
+  }
   assert.match(await (await fetch(`${baseURL}/shoes?q=solution&brand=SCARPA`)).text(), /No climbing shoes match/);
   const detailPage = await (await fetch(`${baseURL}/shoes/scarpa-drago?q=drago&brand=SCARPA`)).text();
   assert.ok(detailPage.includes('https://us.scarpa.com/products/drago'));
@@ -198,9 +215,9 @@ try {
   assert.equal(sizedResponse.status, 200);
   assert.match(sizedResponse.headers.get("cache-control"), /no-store/);
   const sized = await sizedResponse.json();
-  const vsr = sized.shoes.find((shoe) => shoe.slug === "scarpa-instinct-vsr");
-  assert.equal(vsr.sizeReference.status, "available");
-  assert.deepEqual(vsr.sizeReference.sizes, [38, 38.5, 39]);
+  const dragoLv = sized.shoes.find((shoe) => shoe.slug === "scarpa-drago-lv");
+  assert.equal(dragoLv.sizeReference.status, "available");
+  assert.deepEqual(dragoLv.sizeReference.sizes, [38, 38.5, 39]);
   assert.equal(sized.shoes.find((shoe) => shoe.slug === "scarpa-drago").sizeReference.status, "unavailable");
   const withoutStreet = await (await fetch(`${baseURL}/api/recommendations`, { method: "POST", body: answers({ streetSizeEu: "", fitPreference: "PERFORMANCE", experience: "ADVANCED", discipline: "BOULDERING" }) })).json();
   assert.deepEqual(withoutStreet.shoes.map((shoe) => shoe.slug), sized.shoes.map((shoe) => shoe.slug));
